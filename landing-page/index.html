@@ -292,74 +292,78 @@ h1.hero-title{
   overflow: hidden;
   position: relative;
 }
-.win-bar{
-  display: flex; align-items:center; gap: 10px;
-  padding: 8px 14px 6px;
-  background: transparent;
-  position: relative;
+/* 红绿灯：绝对定位在窗口左上角，竖直中心对齐 tab pill 行（≈24pt） */
+.tl-dots{
+  position: absolute; left: 16px; top: 18px; z-index: 6;
+  display:flex; gap: 8px;
 }
-.tl-dots{ display:flex; gap: 6px;}
-.tl-dots i{ width: 11px; height: 11px; border-radius: 50%; display:block; cursor: not-allowed; opacity: 0.9;}
+.tl-dots i{ width: 12px; height: 12px; border-radius: 50%; display:block; cursor: not-allowed;}
 .tl-dots i:nth-child(1){ background:#FF5F57;}
 .tl-dots i:nth-child(2){ background:#FEBC2E;}
 .tl-dots i:nth-child(3){ background:#28C840;}
-.win-bar-spacer{ flex: 1; }
-.win-sidebar-toggle{
-  display: none;
-  width: 26px; height: 22px; border-radius: 6px;
-  align-items: center; justify-content: center;
-  color: var(--term-dim);
-  background: transparent; border: 1px solid transparent;
-  cursor: pointer;
+/* 顶部控件（新建 workspace + 收缩 toggle）：贴 sidebar 列右缘、与 tab 行同高。
+   真实 mux0: toggle 中心 = sidebarWidth(200) - 25 = 175，加号在其左侧一格。 */
+.win-top-controls{
+  position: absolute; z-index: 6;
+  top: 13px; left: 138px;
+  display: flex; align-items: center; gap: 4px;
 }
-.win-sidebar-toggle:hover{ color: var(--term-fg); background: color-mix(in srgb, var(--term-fg) 7%, transparent);}
-@media (max-width: 680px){ .win-sidebar-toggle{ display: inline-flex;} }
-/* win-bar 左侧控件 (add-workspace + sidebar toggle)，对齐真实 mux0 traffic-light 带 */
-.win-bar-controls{ display: flex; align-items: center; gap: 2px; }
+@media (max-width: 680px){
+  /* 折叠侧栏后 toggle 仍需可见，平移到左上角 */
+  .win.collapsed .win-top-controls{ left: 70px; }
+}
 
-/* 终端主题切换器 (win-bar 右侧) */
+/* 主题切换器：落地页控件，置于预览窗口下方（用页面 chrome token，不随终端主题变色） */
+.preview-toolbar{
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  margin-top: 16px;
+}
+.preview-toolbar .ptb-label{
+  font-family:'JetBrains Mono', monospace;
+  font-size: 11.5px; color: var(--fg-3); letter-spacing: 0.02em;
+}
 .theme-switch{
-  display: inline-flex; align-items: center; gap: 6px;
-  height: 24px; padding: 0 8px;
-  border-radius: 7px;
-  background: color-mix(in srgb, var(--term-fg) 6%, transparent);
-  border: 1px solid var(--term-border);
-  color: var(--term-dim); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 30px; padding: 0 12px;
+  border-radius: 9px;
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  color: var(--fg-2); cursor: pointer;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  font-size: 11px;
+  font-size: 12.5px;
   transition: background .12s, color .12s, border-color .12s;
 }
-.theme-switch:hover{ color: var(--term-fg); background: color-mix(in srgb, var(--term-fg) 11%, transparent); }
-.theme-switch .ts-ico{ flex-shrink: 0; opacity: 0.9; }
-.theme-switch .ts-name{ max-width: 110px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.theme-switch .ts-chev{ flex-shrink: 0; opacity: 0.7; }
-@media (max-width: 520px){ .theme-switch .ts-name, .theme-switch .ts-chev{ display: none; } }
+.theme-switch:hover{ color: var(--fg); border-color: var(--accent); }
+.theme-switch .ts-ico{ flex-shrink: 0; opacity: 0.8; }
+.theme-switch .ts-name{ max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+.theme-switch .ts-chev{ flex-shrink: 0; opacity: 0.6; }
+@media (max-width: 520px){ .preview-toolbar .ptb-label{ display: none; } }
 
-/* 主题选择下拉面板 (swatch 列表) */
+/* 主题选择下拉面板 (swatch 列表) — 页面 chrome 风格 */
 .theme-menu{
   position: fixed; z-index: 60;
-  width: 248px; max-height: 360px; overflow-y: auto;
+  width: 256px; max-height: 380px; overflow-y: auto;
   padding: 6px;
-  background: var(--term-sidebar);
-  border: 1px solid var(--term-border-strong);
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
   border-radius: 12px;
-  box-shadow: 0 18px 50px -16px rgba(0,0,0,0.6), 0 4px 14px -6px rgba(0,0,0,0.4);
+  box-shadow: 0 18px 50px -16px rgba(0,0,0,0.45), 0 4px 14px -6px rgba(0,0,0,0.3);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
 }
 .theme-menu::-webkit-scrollbar{ width: 8px; }
-.theme-menu::-webkit-scrollbar-thumb{ background: var(--term-border); border-radius: 4px; }
+.theme-menu::-webkit-scrollbar-thumb{ background: var(--border-strong); border-radius: 4px; }
 .theme-menu-head{
   font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
-  color: var(--term-dim); padding: 4px 8px 6px;
+  color: var(--fg-3); padding: 4px 8px 6px;
 }
 .theme-item{
   display: flex; align-items: center; gap: 9px;
   width: 100%; padding: 6px 8px; border: 0; border-radius: 8px;
-  background: transparent; cursor: pointer; color: var(--term-fg);
+  background: transparent; cursor: pointer; color: var(--fg);
   font-size: 12px; text-align: left;
 }
-.theme-item:hover{ background: color-mix(in srgb, var(--term-fg) 9%, transparent); }
-.theme-item.active{ background: color-mix(in srgb, var(--term-fg) 14%, transparent); }
+.theme-item:hover{ background: var(--chip-bg); }
+.theme-item.active{ background: var(--chip-bg); }
 .theme-item .sw{
   flex-shrink: 0; width: 40px; height: 22px; border-radius: 5px;
   border: 1px solid rgba(127,127,127,0.25);
@@ -370,9 +374,9 @@ h1.hero-title{
 .theme-item .sw .sw-bg{ position: absolute; inset: 0; z-index: 0; }
 .theme-item .sw .sw-dot{ position: relative; z-index: 1; align-self: center; height: 8px; border-radius: 2px; margin: 0 1px; }
 .theme-item .tlabel{ flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.theme-item .tcheck{ flex-shrink: 0; opacity: 0; color: var(--term-dim); }
+.theme-item .tcheck{ flex-shrink: 0; opacity: 0; color: var(--accent); }
 .theme-item.active .tcheck{ opacity: 1; }
-.theme-item .tmode{ flex-shrink: 0; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--term-tertiary); }
+.theme-item .tmode{ flex-shrink: 0; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-3); }
 
 .win-body{
   display: grid;
@@ -381,8 +385,14 @@ h1.hero-title{
   color: var(--term-fg);
   position: relative;
   background: var(--term-sidebar);
+  transition: grid-template-columns .22s ease;
 }
 .sidebar-scrim{ display: none; }
+/* 桌面收缩：toggle 隐藏 sidebar，card 占满；tab strip 仍保持原 x（真实 leading reserve） */
+.win.collapsed .win-body{ grid-template-columns: 0 1fr; }
+.win.collapsed .sidebar{ opacity: 0; pointer-events: none; }
+.win.collapsed #ws-add{ opacity: 0; pointer-events: none; }
+.win.collapsed .tab-bar{ padding-left: 200px; }
 @media (max-width: 680px){
   .win-body{ grid-template-columns: 1fr; height: 864px; }
   .sidebar{
@@ -393,8 +403,10 @@ h1.hero-title{
     transform: translateX(-100%);
     transition: transform .22s ease;
     box-shadow: 10px 0 30px -10px rgba(0,0,0,0.5);
+    background: var(--term-sidebar);
   }
   .sidebar.open{ transform: translateX(0);}
+  .win.collapsed .tab-bar{ padding-left: 4px; }
   .sidebar-scrim{
     display: block;
     position: absolute; inset: 0; background: rgba(0,0,0,0.3);
@@ -404,12 +416,13 @@ h1.hero-title{
 }
 .sidebar{
   background: transparent;
-  padding: 8px 8px 8px 8px;
+  padding: 34px 8px 8px 8px;
   font-family:'JetBrains Mono', monospace;
   font-size: 12px;
   display: flex; flex-direction: column;
   height: 100%;
   min-height: 0;
+  transition: opacity .18s ease;
 }
 .sidebar-header{
   display: flex; align-items: center; justify-content: space-between;
@@ -629,8 +642,9 @@ h1.hero-title{
   background: var(--term-bg);
   overflow: hidden;
   min-width: 0;
-  margin: 0 8px 8px 0;
+  margin: 4px 8px 8px 0;
   border-radius: 10px;
+  transition: padding-left .22s ease;
 }
 /* Tab bar = 圆角 strip 容器 (sidebar 底色) + 右侧独立 "+" 按钮
    1:1 对齐真实 mux0 TabBarView：strip 高 32 / 4pt 外内缩，pill 高 26 / 3pt 内缩 / 6 圆角 */
@@ -724,7 +738,8 @@ h1.hero-title{
 
 /* terminal pane */
 .term-pane{
-  padding: 14px 16px 14px;
+  /* 真实 mux0 终端内容顶部无额外间距（ghostty window-padding 很小），首行紧贴 tab 行 */
+  padding: 4px 14px 14px;
   font-family:'JetBrains Mono', monospace;
   font-size: 12.5px;
   line-height: 1.6;
@@ -1298,10 +1313,10 @@ kbd{
       <polyline points="4.5,6 7,8 4.5,10" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
       <line x1="8" y1="10.4" x2="11" y2="10.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
     </symbol>
-    <symbol id="icon-agent" viewBox="0 0 16 16">
-      <path d="M8 1.6 L9.3 5.2 L12.9 6.4 L9.3 7.6 L8 11.2 L6.7 7.6 L3.1 6.4 L6.7 5.2 Z" fill="currentColor"/>
-      <circle cx="12.4" cy="11.8" r="1.7" fill="currentColor"/>
-    </symbol>
+    <!-- agent 标签图标：与真实 mux0 quick-action 资源 1:1（claudecode/codex/opencode），均 currentColor template -->
+    <symbol id="icon-claude" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.073-2.339-.097-2.266-.122-.571-.121L0 11.784l.055-.352.48-.321.686.06 1.52.103 2.278.158 1.652.097 2.449.255h.389l.055-.157-.134-.098-.103-.097-2.358-1.596-2.552-1.688-1.336-.972-.724-.491-.364-.462-.158-1.008.656-.722.881.06.225.061.893.686 1.908 1.476 2.491 1.833.365.304.145-.103.019-.073-.164-.274-1.355-2.446-1.446-2.49-.644-1.032-.17-.619a2.97 2.97 0 01-.104-.729L6.283.134 6.696 0l.996.134.42.364.62 1.414 1.002 2.229 1.555 3.03.456.898.243.832.091.255h.158V9.01l.128-1.706.237-2.095.23-2.695.08-.76.376-.91.747-.492.584.28.48.685-.067.444-.286 1.851-.559 2.903-.364 1.942h.212l.243-.242.985-1.306 1.652-2.064.73-.82.85-.904.547-.431h1.033l.76 1.129-.34 1.166-1.064 1.347-.881 1.142-1.264 1.7-.79 1.36.073.11.188-.02 2.856-.606 1.543-.28 1.841-.315.833.388.091.395-.328.807-1.969.486-2.309.462-3.439.813-.042.03.049.061 1.549.146.662.036h1.622l3.02.225.79.522.474.638-.079.485-1.215.62-1.64-.389-3.829-.91-1.312-.329h-.182v.11l1.093 1.068 2.006 1.81 2.509 2.33.127.578-.322.455-.34-.049-2.205-1.657-.851-.747-1.926-1.62h-.128v.17l.444.649 2.345 3.521.122 1.08-.17.353-.608.213-.668-.122-1.374-1.925-1.415-2.167-1.143-1.943-.14.08-.674 7.254-.316.37-.729.28-.607-.461-.322-.747.322-1.476.389-1.924.315-1.53.286-1.9.17-.632-.012-.042-.14.018-1.434 1.967-2.18 2.945-1.726 1.845-.414.164-.717-.37.067-.662.401-.589 2.388-3.036 1.44-1.882.93-1.086-.006-.158h-.055L4.132 18.56l-1.13.146-.487-.456.061-.746.231-.243 1.908-1.312-.006.006z"></path></symbol>
+    <symbol id="icon-codex" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M9.205 8.658v-2.26c0-.19.072-.333.238-.428l4.543-2.616c.619-.357 1.356-.523 2.117-.523 2.854 0 4.662 2.212 4.662 4.566 0 .167 0 .357-.024.547l-4.71-2.759a.797.797 0 00-.856 0l-5.97 3.473zm10.609 8.8V12.06c0-.333-.143-.57-.429-.737l-5.97-3.473 1.95-1.118a.433.433 0 01.476 0l4.543 2.617c1.309.76 2.189 2.378 2.189 3.948 0 1.808-1.07 3.473-2.76 4.163zM7.802 12.703l-1.95-1.142c-.167-.095-.239-.238-.239-.428V5.899c0-2.545 1.95-4.472 4.591-4.472 1 0 1.927.333 2.712.928L8.23 5.067c-.285.166-.428.404-.428.737v6.898zM12 15.128l-2.795-1.57v-3.33L12 8.658l2.795 1.57v3.33L12 15.128zm1.796 7.23c-1 0-1.927-.332-2.712-.927l4.686-2.712c.285-.166.428-.404.428-.737v-6.898l1.974 1.142c.167.095.238.238.238.428v5.233c0 2.545-1.974 4.472-4.614 4.472zm-5.637-5.303l-4.544-2.617c-1.308-.761-2.188-2.378-2.188-3.948A4.482 4.482 0 014.21 6.327v5.423c0 .333.143.571.428.738l5.947 3.449-1.95 1.118a.432.432 0 01-.476 0zm-.262 3.9c-2.688 0-4.662-2.021-4.662-4.519 0-.19.024-.38.047-.57l4.686 2.71c.286.167.571.167.856 0l5.97-3.448v2.26c0 .19-.07.333-.237.428l-4.543 2.616c-.619.357-1.356.523-2.117.523zm5.899 2.83a5.947 5.947 0 005.827-4.756C22.287 18.339 24 15.84 24 13.296c0-1.665-.713-3.282-1.998-4.448.119-.5.19-.999.19-1.498 0-3.401-2.759-5.947-5.946-5.947-.642 0-1.26.095-1.88.31A5.962 5.962 0 0010.205 0a5.947 5.947 0 00-5.827 4.757C1.713 5.447 0 7.945 0 10.49c0 1.666.713 3.283 1.998 4.448-.119.5-.19 1-.19 1.499 0 3.401 2.759 5.946 5.946 5.946.642 0 1.26-.095 1.88-.309a5.96 5.96 0 004.162 1.713z"></path></symbol>
+    <symbol id="icon-opencode" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M16 6H8v12h8V6zm4 16H4V2h16v20z"></path></symbol>
     <symbol id="icon-palette" viewBox="0 0 16 16">
       <path d="M8 1.6c3.5 0 6.4 2.6 6.4 5.8 0 2-1.7 3.1-3.3 3.1H9.7c-.7 0-1.1.5-1.1 1.1 0 .3.1.5.3.8.2.3.3.5.3.8 0 .7-.6 1.2-1.5 1.2C4.4 16 1.6 12.9 1.6 9 1.6 4.8 4.6 1.6 8 1.6Z" fill="none" stroke="currentColor" stroke-width="1.2"/>
       <circle cx="5" cy="7" r="1" fill="currentColor"/>
@@ -1364,23 +1379,18 @@ kbd{
     <div class="hero-stage reveal">
       <div class="hero-window">
         <div class="win" id="preview-win">
-          <div class="win-bar">
-            <div class="tl-dots" aria-hidden="true"><i></i><i></i><i></i></div>
-            <div class="win-bar-controls">
-              <button class="side-icon" id="ws-add" aria-label="Add workspace" title="Add workspace">
-                <svg width="12" height="12"><use href="#icon-plus"/></svg>
-              </button>
-              <button class="win-sidebar-toggle" id="sidebar-mobile-toggle" aria-label="Toggle sidebar">
-                <svg width="14" height="14"><use href="#icon-sidebar"/></svg>
-              </button>
-            </div>
-            <div class="win-bar-spacer"></div>
-            <button class="theme-switch" id="term-theme-btn" aria-label="Switch terminal theme" title="Switch terminal theme">
-              <svg class="ts-ico" width="13" height="13"><use href="#icon-palette"/></svg>
-              <span class="ts-name" id="term-theme-name">mux0</span>
-              <svg class="ts-chev" width="11" height="11" viewBox="0 0 16 16"><polyline points="4,6 8,10 12,6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <!-- 红绿灯 + 顶部控件：绝对定位覆盖在 sidebar 列顶部，与 tab strip 同一行
+               （对齐真实 mux0 ContentView：toggle 中心 x=sidebarWidth-25，加号在其左侧） -->
+          <div class="tl-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+          <div class="win-top-controls">
+            <button class="side-icon" id="ws-add" aria-label="Add workspace" title="Add workspace">
+              <svg width="13" height="13"><use href="#icon-plus"/></svg>
+            </button>
+            <button class="side-icon" id="sidebar-toggle" aria-label="Toggle sidebar" title="Hide sidebar">
+              <svg width="14" height="14"><use href="#icon-sidebar"/></svg>
             </button>
           </div>
+
           <div class="win-body">
             <div class="sidebar-scrim" id="sidebar-scrim"></div>
 
@@ -1399,7 +1409,7 @@ kbd{
               </div>
             </aside>
 
-            <!-- main pane -->
+            <!-- main pane（card：tab strip + 终端） -->
             <div class="main-pane">
               <div class="tab-bar" id="tab-bar"></div>
               <div class="term-pane" id="term-pane">
@@ -1409,6 +1419,15 @@ kbd{
           </div>
           <div class="toast" id="toast"></div>
         </div>
+      </div>
+      <!-- 主题切换器：落地页控件（不属于真实 app UI），让访客试用不同 ghostty 终端配色 -->
+      <div class="preview-toolbar reveal">
+        <span class="ptb-label" data-i18n="preview.themeLabel">Try a terminal theme</span>
+        <button class="theme-switch" id="term-theme-btn" aria-label="Switch terminal theme" title="Switch terminal theme">
+          <svg class="ts-ico" width="13" height="13"><use href="#icon-palette"/></svg>
+          <span class="ts-name" id="term-theme-name">mux0 (native)</span>
+          <svg class="ts-chev" width="11" height="11" viewBox="0 0 16 16"><polyline points="4,6 8,10 12,6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
       </div>
       <div class="preview-caption" data-i18n="preview.caption">
         Live preview — <kbd>+</kbd> add workspace/tab · double-click to rename · drag to reorder · type a command and hit <kbd>Enter</kbd>
@@ -1770,6 +1789,7 @@ const i18n = {
     "hero.meta.ver": "v0.8.2",
     "sidebar.workspaces": "WORKSPACES",
     "preview.caption": "Live preview — + add workspace/tab · double-click to rename · drag to reorder · type a command and hit Enter",
+    "preview.themeLabel": "Try a terminal theme",
     "why.kicker": "THREE IDEAS",
     "why.title": "Native, agent-aware, project-first.",
     "why.sub": "Three choices we made early, and kept making. The terminal we wanted after spending serious time with AI coding agents — never silent about what they're doing, never in the way when they aren't.",
@@ -1896,6 +1916,7 @@ const i18n = {
     "hero.meta.ver": "v0.8.2",
     "sidebar.workspaces": "工作区",
     "preview.caption": "实时预览 —— + 新建工作区/标签 · 双击重命名 · 拖拽排序 · 输入命令回车执行",
+    "preview.themeLabel": "试试终端主题",
     "why.kicker": "三个理念",
     "why.title": "原生、懂 Agent、以项目为单位。",
     "why.sub": "三个我们一开始就选好的方向，也一直坚持。这是被 AI Agent 推着干活一段时间之后，我们给自己做的终端 —— Agent 在干什么时它不沉默，Agent 没事时它不碍事。",
@@ -2100,7 +2121,7 @@ function applyTermTheme(name){
   if (!th){
     // 回到 mux0 原生主题：清掉 inline 覆盖，跟随站点 light/dark token
     TERM_THEME_VARS.forEach(v => win.style.removeProperty(v));
-    if (label) label.textContent = "mux0";
+    if (label) label.textContent = "mux0 (native)";
     localStorage.setItem("mux0.termTheme", "mux0");
     return;
   }
@@ -2316,7 +2337,8 @@ function initPreview(){
   const toast = document.getElementById("toast");
   const sidebar = document.getElementById("sidebar");
   const sidebarScrim = document.getElementById("sidebar-scrim");
-  const sidebarMobileToggle = document.getElementById("sidebar-mobile-toggle");
+  const sidebarToggle = document.getElementById("sidebar-toggle");
+  const previewWin = document.getElementById("preview-win");
 
   function showToast(msg){
     toast.textContent = msg;
@@ -2548,9 +2570,9 @@ function initPreview(){
       openContextMenu(r.left, r.bottom + 4, [
         { label: t("ctx.terminal"), icon: "terminal", onClick: () => addTab("zsh") },
         { separator: true },
-        { label: "claude",   icon: "agent", onClick: () => addQuickActionTab("claude") },
-        { label: "codex",    icon: "agent", onClick: () => addQuickActionTab("codex") },
-        { label: "opencode", icon: "agent", onClick: () => addQuickActionTab("opencode") }
+        { label: "claude",   icon: "claude",   onClick: () => addQuickActionTab("claude") },
+        { label: "codex",    icon: "codex",    onClick: () => addQuickActionTab("codex") },
+        { label: "opencode", icon: "opencode", onClick: () => addQuickActionTab("opencode") }
       ]);
     });
     tabBar.appendChild(add);
@@ -2755,11 +2777,14 @@ function initPreview(){
 
   function setTabStatus(tab, status){ tab.status = status; }
 
-  // 真实 mux0: agent 标签 (claude/codex/opencode) 用 agent 图标，其余 shell 类用 terminal 图标
-  const AGENT_NAMES = ["claude","codex","opencode","gemini","aider"];
+  // 真实 mux0: 标签图标来自该 tab 的 quick-action 图标资源；plain shell 用 SF "terminal"。
+  // claude→claudecode.svg, codex→codex.svg, opencode→opencode.svg（与 Assets.xcassets 1:1）
   function tabKind(name){
     const n = String(name || "").toLowerCase().trim();
-    return AGENT_NAMES.some(a => n === a || n.startsWith(a + " ")) ? "agent" : "terminal";
+    if (n === "claude" || n.startsWith("claude ")) return "claude";
+    if (n === "codex" || n.startsWith("codex ")) return "codex";
+    if (n === "opencode" || n.startsWith("opencode ")) return "opencode";
+    return "terminal";
   }
 
   function aggregateStatus(ws){
@@ -2902,7 +2927,7 @@ function initPreview(){
     renderTerminal();
   }
 
-  // mobile sidebar
+  // sidebar 收缩 toggle：窄屏走抽屉，宽屏走 collapse（隐藏 sidebar，card 占满）
   function openMobileSidebar(){
     sidebar.classList.add("open");
     sidebarScrim.classList.add("show");
@@ -2911,8 +2936,17 @@ function initPreview(){
     sidebar.classList.remove("open");
     sidebarScrim.classList.remove("show");
   }
-  sidebarMobileToggle.addEventListener("click", () => {
-    if (sidebar.classList.contains("open")) closeMobileSidebar(); else openMobileSidebar();
+  function syncToggleTooltip(){
+    const collapsed = previewWin.classList.contains("collapsed");
+    sidebarToggle.title = collapsed ? "Show sidebar" : "Hide sidebar";
+  }
+  sidebarToggle.addEventListener("click", () => {
+    if (window.matchMedia("(max-width: 680px)").matches){
+      if (sidebar.classList.contains("open")) closeMobileSidebar(); else openMobileSidebar();
+    } else {
+      previewWin.classList.toggle("collapsed");
+      syncToggleTooltip();
+    }
   });
   sidebarScrim.addEventListener("click", closeMobileSidebar);
 
