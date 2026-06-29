@@ -442,6 +442,7 @@ h1.hero-title{
   display: inline-flex; align-items: center; justify-content: center;
   color: var(--term-dim); background: transparent;
   border: 1px solid transparent; cursor: pointer;
+  padding: 0;   /* 重置 <button> 默认内距，否则内容区被压窄、svg 被挤成瘦长形 */
   transition: background .12s, color .12s, border-color .12s;
 }
 .side-icon:hover{ color: var(--term-fg); background: var(--term-border);}
@@ -1295,8 +1296,8 @@ kbd{
       <line x1="10" y1="12" x2="13" y2="12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
     </symbol>
     <symbol id="icon-plus" viewBox="0 0 16 16">
-      <line x1="8" y1="3" x2="8" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-      <line x1="3" y1="8" x2="13" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="8" y1="2.2" x2="8" y2="13.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+      <line x1="2.2" y1="8" x2="13.8" y2="8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
     </symbol>
     <symbol id="icon-x" viewBox="0 0 16 16">
       <line x1="4" y1="4" x2="12" y2="12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
@@ -1393,10 +1394,10 @@ kbd{
           <div class="tl-dots" aria-hidden="true"><i></i><i></i><i></i></div>
           <div class="win-top-controls">
             <button class="side-icon" id="ws-add" aria-label="Add workspace" title="Add workspace">
-              <svg width="13" height="13"><use href="#icon-plus"/></svg>
+              <svg width="15" height="15"><use href="#icon-plus"/></svg>
             </button>
             <button class="side-icon" id="sidebar-toggle" aria-label="Toggle sidebar" title="Hide sidebar">
-              <svg width="13" height="13"><use href="#icon-sidebar"/></svg>
+              <svg width="15" height="15"><use href="#icon-sidebar"/></svg>
             </button>
           </div>
 
@@ -1413,7 +1414,7 @@ kbd{
                 <span class="footer-update-dot" aria-hidden="true"></span>
                 <span class="footer-spacer"></span>
                 <button class="side-icon disabled" data-disabled-msg title="Settings" aria-label="Settings (disabled in preview)">
-                  <svg width="13" height="13"><use href="#icon-gear"/></svg>
+                  <svg width="15" height="15"><use href="#icon-gear"/></svg>
                 </button>
               </div>
             </aside>
