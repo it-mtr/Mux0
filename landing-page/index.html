@@ -388,11 +388,13 @@ h1.hero-title{
   transition: grid-template-columns .22s ease;
 }
 .sidebar-scrim{ display: none; }
-/* 桌面收缩：toggle 隐藏 sidebar，card 占满；tab strip 仍保持原 x（真实 leading reserve） */
+/* 桌面收缩：toggle 隐藏 sidebar，card 左缩到 cardInset(4)；tab strip 保留 leading
+   reserve(sidebarWidth - xs = 196) 让它停在原窗口 x，避开左上角控件（对齐真实 mux0）。 */
 .win.collapsed .win-body{ grid-template-columns: 0 1fr; }
 .win.collapsed .sidebar{ opacity: 0; pointer-events: none; }
 .win.collapsed #ws-add{ opacity: 0; pointer-events: none; }
-.win.collapsed .tab-bar{ padding-left: 200px; }
+.win.collapsed .main-pane{ margin-left: 4px; }
+.win.collapsed .tab-bar{ padding-left: 196px; }
 @media (max-width: 680px){
   .win-body{ grid-template-columns: 1fr; height: 864px; }
   .sidebar{
@@ -416,7 +418,9 @@ h1.hero-title{
 }
 .sidebar{
   background: transparent;
-  padding: 34px 8px 8px 8px;
+  /* 列表首行距窗口顶 = trafficLightInset(28) + 列表 top padding(lg+xs=20) = 48；
+     左右 outerHorizontalInset = sm(8)。 */
+  padding: 48px 8px 0 8px;
   font-family:'JetBrains Mono', monospace;
   font-size: 12px;
   display: flex; flex-direction: column;
@@ -440,7 +444,7 @@ h1.hero-title{
   border: 1px solid transparent; cursor: pointer;
   transition: background .12s, color .12s, border-color .12s;
 }
-.side-icon:hover{ color: var(--term-fg); background: color-mix(in srgb, var(--term-fg) 7%, transparent);}
+.side-icon:hover{ color: var(--term-fg); background: var(--term-border);}
 .side-icon:disabled, .side-icon.disabled{
   cursor: not-allowed; opacity: 0.35;
 }
@@ -457,11 +461,14 @@ h1.hero-title{
 .ws-list::-webkit-scrollbar-track{ background: transparent;}
 
 .ws-row{
+  /* 真实 mux0: baseRowHeight 44, 内容顶部锚定, hPad 12, topPad 4, pairGap 4, rowSpacing 3 */
   display: grid;
   grid-template-columns: 1fr auto;
   grid-template-rows: auto auto;
-  gap: 2px 8px;
-  padding: 8px 12px;
+  align-content: start;
+  gap: 4px 8px;
+  padding: 4px 12px;
+  min-height: 44px;
   border-radius: 6px;
   cursor: pointer;
   margin-bottom: 3px;
@@ -485,7 +492,7 @@ h1.hero-title{
   grid-column: 1; grid-row: 1;
   color: var(--term-dim); font-weight: 500;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  font-size: 12px;
+  font-size: 12px; line-height: 16px;
 }
 .ws-row.selected .name{ color: var(--term-fg);}
 .ws-row .dot-wrap{
@@ -494,11 +501,10 @@ h1.hero-title{
 }
 .ws-row .branch{
   grid-column: 1; grid-row: 2;
-  color: var(--term-tertiary); font-size: 10.5px;
+  color: var(--term-tertiary); font-size: 10px; line-height: 13px;
+  font-family:'JetBrains Mono', monospace;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  display: flex; align-items: center; gap: 4px;
 }
-.ws-row .branch svg{ opacity: 0.7; flex-shrink: 0;}
 .ws-row .rename-input{
   grid-column: 1; grid-row: 1;
   background: rgba(0,0,0,0.35);
@@ -614,14 +620,16 @@ h1.hero-title{
 }
 
 .sidebar-footer{
+  /* 真实: leading sm+md=20(含 sidebar 8 → 此处 12), trailing 14(含 8 → 此处 6), vertical sm=8。
+     齿轮中心落在 sidebarWidth-25=175，与上方 toggle、行状态点同轴 */
   display: flex; align-items: center;
-  padding: 8px 14px 8px 12px;
+  padding: 8px 6px 8px 12px;
   margin-top: 4px;
   gap: 4px;
 }
 /* 真实 mux0 footer: "Mux0 v{version}" 品牌按钮 + 可选更新红点 + spacer + gear */
 .footer-brand{
-  display: inline-flex; align-items: baseline; gap: 5px;
+  display: inline-flex; align-items: baseline; gap: 4px;
   background: transparent; border: 0; padding: 2px 0; cursor: pointer;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
 }
@@ -642,9 +650,10 @@ h1.hero-title{
   background: var(--term-bg);
   overflow: hidden;
   min-width: 0;
-  margin: 4px 8px 8px 0;
-  border-radius: 10px;
-  transition: padding-left .22s ease;
+  /* card 内缩 = DT.Space.xs(4)：top/right/bottom 各 4，left 0（贴 sidebar）；圆角 = DT.Radius.card(12) */
+  margin: 4px 4px 4px 0;
+  border-radius: 12px;
+  transition: padding-left .22s ease, margin-left .22s ease;
 }
 /* Tab bar = 圆角 strip 容器 (sidebar 底色) + 右侧独立 "+" 按钮
    1:1 对齐真实 mux0 TabBarView：strip 高 32 / 4pt 外内缩，pill 高 26 / 3pt 内缩 / 6 圆角 */
@@ -738,8 +747,8 @@ h1.hero-title{
 
 /* terminal pane */
 .term-pane{
-  /* 真实 mux0 终端内容顶部无额外间距（ghostty window-padding 很小），首行紧贴 tab 行 */
-  padding: 4px 14px 14px;
+  /* 终端内容四周间距 = ghostty window-padding(x=4,y=4)，首行紧贴 tab 行、左缘对齐 tab strip */
+  padding: 4px 4px 10px;
   font-family:'JetBrains Mono', monospace;
   font-size: 12.5px;
   line-height: 1.6;
@@ -1387,7 +1396,7 @@ kbd{
               <svg width="13" height="13"><use href="#icon-plus"/></svg>
             </button>
             <button class="side-icon" id="sidebar-toggle" aria-label="Toggle sidebar" title="Hide sidebar">
-              <svg width="14" height="14"><use href="#icon-sidebar"/></svg>
+              <svg width="13" height="13"><use href="#icon-sidebar"/></svg>
             </button>
           </div>
 
@@ -2428,9 +2437,10 @@ function initPreview(){
       name.textContent = ws.name;
       row.appendChild(name);
 
+      // 真实 mux0: branchLabel.stringValue = "⎇ \(branch)"（mono 文字，非 SVG 图标）
       const branch = document.createElement("div");
       branch.className = "branch";
-      branch.innerHTML = `<svg width="11" height="11"><use href="#icon-branch"/></svg><span>${escapeHtml(ws.branch)}</span>`;
+      branch.textContent = "⎇ " + ws.branch;
       row.appendChild(branch);
 
       const dotWrap = document.createElement("div");
