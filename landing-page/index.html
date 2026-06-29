@@ -43,10 +43,24 @@
   --kbd-bg: rgba(0,0,0,0.05);
   --window-shadow: 0 20px 60px -20px rgba(0,0,0,0.25), 0 4px 16px -4px rgba(0,0,0,0.12);
   --inner-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
-  --term-bg: #0E1116;
-  --term-fg: #D5DAE1;
-  --term-dim: #8A919B;
-  --term-sidebar: #10141A;
+  /* terminal theme tokens — fallback = real mux0 native theme (AppTheme light) */
+  --term-bg: #FBFAF9;          /* canvas */
+  --term-fg: #191A1B;          /* textPrimary */
+  --term-dim: #737373;         /* textSecondary */
+  --term-tertiary: #ACABAB;    /* textTertiary */
+  --term-sidebar: #F0EFEE;     /* sidebar (= canvas mixed ~5% fg) */
+  --term-border: #E0DFDE;      /* border token: tab separators, divider, row fill */
+  --term-border-strong: #C9C8C8;
+  /* terminal CONTENT (ghostty palette) — theme switcher overrides these per theme */
+  --term-cursor: #191A1B;
+  --out-muted:  #737373;
+  --out-ok:     #2E993C;
+  --out-warn:   #D9730D;
+  --out-err:    #D32F2F;
+  --out-acc:    #1B7C83;
+  --term-prompt-path:   #2F6F8E;
+  --term-prompt-branch: #ACABAB;
+  --term-prompt-caret:  #2E993C;
 }
 html.dark{
   --bg: #0B0D10;
@@ -66,10 +80,24 @@ html.dark{
   --kbd-bg: rgba(255,255,255,0.06);
   --window-shadow: 0 40px 80px -30px rgba(0,0,0,0.7), 0 8px 24px -8px rgba(0,0,0,0.5);
   --inner-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);
-  --term-bg: #0B0D10;
-  --term-fg: #D5DAE1;
-  --term-dim: #7A818B;
-  --term-sidebar: #0E1116;
+  /* terminal theme tokens — fallback = real mux0 native theme (AppTheme dark) */
+  --term-bg: #121213;          /* canvas */
+  --term-fg: #EBEBED;          /* textPrimary */
+  --term-dim: #949496;         /* textSecondary */
+  --term-tertiary: #5D5E5F;    /* textTertiary */
+  --term-sidebar: #191A1B;     /* sidebar (= canvas mixed ~4% fg) */
+  --term-border: #2C2C2D;      /* border token: tab separators, divider, row fill */
+  --term-border-strong: #414243;
+  /* terminal CONTENT (ghostty palette) — theme switcher overrides these per theme */
+  --term-cursor: #EBEBED;
+  --out-muted:  #7A818B;
+  --out-ok:     #3FBA50;
+  --out-warn:   #F3A832;
+  --out-err:    #F85149;
+  --out-acc:    #A3C8DC;
+  --term-prompt-path:   #7FA4BF;
+  --term-prompt-branch: #5D5E5F;
+  --term-prompt-caret:  #A3C8DC;
 }
 
 /* status — 对齐 AppTheme.swift / TerminalStatusIconView.swift：
@@ -77,7 +105,7 @@ html.dark{
    success / failed 独立色；idle / neverRan 用 textTertiary 灰。 */
 :root{
   --s-running: #F3A832;   /* = accent fallback (isDark) */
-  --s-idle:    #7A7F87;
+  --s-idle:    #5D5E5F;   /* = textTertiary (isDark) */
   --s-needs:   #F3A832;   /* = accent fallback (isDark) */
   --s-success: #3FBA50;   /* = AppTheme.success isDark */
   --s-failed:  #F85149;   /* = AppTheme.danger  isDark */
@@ -284,8 +312,67 @@ h1.hero-title{
   background: transparent; border: 1px solid transparent;
   cursor: pointer;
 }
-.win-sidebar-toggle:hover{ color: var(--term-fg); background: rgba(255,255,255,0.05);}
+.win-sidebar-toggle:hover{ color: var(--term-fg); background: color-mix(in srgb, var(--term-fg) 7%, transparent);}
 @media (max-width: 680px){ .win-sidebar-toggle{ display: inline-flex;} }
+/* win-bar 左侧控件 (add-workspace + sidebar toggle)，对齐真实 mux0 traffic-light 带 */
+.win-bar-controls{ display: flex; align-items: center; gap: 2px; }
+
+/* 终端主题切换器 (win-bar 右侧) */
+.theme-switch{
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 24px; padding: 0 8px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--term-fg) 6%, transparent);
+  border: 1px solid var(--term-border);
+  color: var(--term-dim); cursor: pointer;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-size: 11px;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.theme-switch:hover{ color: var(--term-fg); background: color-mix(in srgb, var(--term-fg) 11%, transparent); }
+.theme-switch .ts-ico{ flex-shrink: 0; opacity: 0.9; }
+.theme-switch .ts-name{ max-width: 110px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.theme-switch .ts-chev{ flex-shrink: 0; opacity: 0.7; }
+@media (max-width: 520px){ .theme-switch .ts-name, .theme-switch .ts-chev{ display: none; } }
+
+/* 主题选择下拉面板 (swatch 列表) */
+.theme-menu{
+  position: fixed; z-index: 60;
+  width: 248px; max-height: 360px; overflow-y: auto;
+  padding: 6px;
+  background: var(--term-sidebar);
+  border: 1px solid var(--term-border-strong);
+  border-radius: 12px;
+  box-shadow: 0 18px 50px -16px rgba(0,0,0,0.6), 0 4px 14px -6px rgba(0,0,0,0.4);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+.theme-menu::-webkit-scrollbar{ width: 8px; }
+.theme-menu::-webkit-scrollbar-thumb{ background: var(--term-border); border-radius: 4px; }
+.theme-menu-head{
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--term-dim); padding: 4px 8px 6px;
+}
+.theme-item{
+  display: flex; align-items: center; gap: 9px;
+  width: 100%; padding: 6px 8px; border: 0; border-radius: 8px;
+  background: transparent; cursor: pointer; color: var(--term-fg);
+  font-size: 12px; text-align: left;
+}
+.theme-item:hover{ background: color-mix(in srgb, var(--term-fg) 9%, transparent); }
+.theme-item.active{ background: color-mix(in srgb, var(--term-fg) 14%, transparent); }
+.theme-item .sw{
+  flex-shrink: 0; width: 40px; height: 22px; border-radius: 5px;
+  border: 1px solid rgba(127,127,127,0.25);
+  display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; overflow: hidden;
+  position: relative;
+}
+.theme-item .sw i{ display: block; }
+.theme-item .sw .sw-bg{ position: absolute; inset: 0; z-index: 0; }
+.theme-item .sw .sw-dot{ position: relative; z-index: 1; align-self: center; height: 8px; border-radius: 2px; margin: 0 1px; }
+.theme-item .tlabel{ flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.theme-item .tcheck{ flex-shrink: 0; opacity: 0; color: var(--term-dim); }
+.theme-item.active .tcheck{ opacity: 1; }
+.theme-item .tmode{ flex-shrink: 0; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--term-tertiary); }
 
 .win-body{
   display: grid;
@@ -317,7 +404,7 @@ h1.hero-title{
 }
 .sidebar{
   background: transparent;
-  padding: 4px 8px 8px 8px;
+  padding: 8px 8px 8px 8px;
   font-family:'JetBrains Mono', monospace;
   font-size: 12px;
   display: flex; flex-direction: column;
@@ -336,16 +423,16 @@ h1.hero-title{
 .side-icon{
   width: 22px; height: 22px; border-radius: 6px;
   display: inline-flex; align-items: center; justify-content: center;
-  color: #8A919B; background: transparent;
+  color: var(--term-dim); background: transparent;
   border: 1px solid transparent; cursor: pointer;
   transition: background .12s, color .12s, border-color .12s;
 }
-.side-icon:hover{ color: #E7EAEE; background: rgba(255,255,255,0.05);}
+.side-icon:hover{ color: var(--term-fg); background: color-mix(in srgb, var(--term-fg) 7%, transparent);}
 .side-icon:disabled, .side-icon.disabled{
   cursor: not-allowed; opacity: 0.35;
 }
 .side-icon:disabled:hover, .side-icon.disabled:hover{
-  background: transparent; border-color: transparent; color: #8A919B;
+  background: transparent; border-color: transparent; color: var(--term-dim);
 }
 .side-label{
   font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em;
@@ -353,7 +440,7 @@ h1.hero-title{
 }
 .ws-list{ flex: 1; overflow-y: auto; margin: 0 -4px; padding: 0 4px; }
 .ws-list::-webkit-scrollbar{ width: 6px;}
-.ws-list::-webkit-scrollbar-thumb{ background: rgba(255,255,255,0.08); border-radius: 3px;}
+.ws-list::-webkit-scrollbar-thumb{ background: var(--term-border); border-radius: 3px;}
 .ws-list::-webkit-scrollbar-track{ background: transparent;}
 
 .ws-row{
@@ -361,16 +448,17 @@ h1.hero-title{
   grid-template-columns: 1fr auto;
   grid-template-rows: auto auto;
   gap: 2px 8px;
-  padding: 8px 10px;
-  border-radius: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
   cursor: pointer;
   margin-bottom: 3px;
   position: relative;
   user-select: none;
   transition: background .12s;
 }
-.ws-row:hover{ background: rgba(255,255,255,0.04);}
-.ws-row.selected{ background: rgba(255,255,255,0.07);}
+/* 真实 mux0: hover 与 selected 同一 border-token 填充，仅文字色不同 */
+.ws-row:hover{ background: var(--term-border);}
+.ws-row.selected{ background: var(--term-border);}
 .ws-row.dragging{ opacity: 0.4;}
 .ws-row.drop-above::before{
   content: ""; position: absolute; left: 4px; right: 4px; top: -2px;
@@ -382,18 +470,18 @@ h1.hero-title{
 }
 .ws-row .name{
   grid-column: 1; grid-row: 1;
-  color: #D5DAE1; font-weight: 500;
+  color: var(--term-dim); font-weight: 500;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   font-size: 12px;
 }
-.ws-row.selected .name{ color: #F1F4F8;}
+.ws-row.selected .name{ color: var(--term-fg);}
 .ws-row .dot-wrap{
   grid-column: 2; grid-row: 1; align-self: center;
   display: flex; align-items: center; gap: 4px;
 }
 .ws-row .branch{
   grid-column: 1; grid-row: 2;
-  color: #7A818B; font-size: 10.5px;
+  color: var(--term-tertiary); font-size: 10.5px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   display: flex; align-items: center; gap: 4px;
 }
@@ -433,7 +521,9 @@ h1.hero-title{
   box-shadow: 0 16px 40px -8px rgba(0,0,0,0.18), 0 4px 12px -2px rgba(0,0,0,0.1);
 }
 .ctx-item{
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   text-align: left;
   padding: 6px 10px;
@@ -444,6 +534,7 @@ h1.hero-title{
   font: inherit;
   cursor: pointer;
 }
+.ctx-item .ctx-ico{ flex-shrink: 0; opacity: 0.85; }
 .ctx-item:hover{ background: rgba(255,255,255,0.08);}
 .ctx-item.destructive{ color: var(--s-failed); }
 .ctx-item.disabled{ opacity: 0.4; cursor: default; }
@@ -473,10 +564,13 @@ h1.hero-title{
   border-radius: 50%;
   box-sizing: border-box;
 }
-.dot.idle::before,
 .dot.neverRan::before{
   border: 1px solid var(--s-idle);
-  opacity: 0.7;
+  opacity: 1;
+}
+.dot.idle::before{
+  border: 1px solid var(--s-idle);
+  opacity: 0.6;
 }
 .dot.needs::before{    background: var(--s-needs); }
 .dot.success::before{  background: var(--s-success); }
@@ -507,12 +601,25 @@ h1.hero-title{
 }
 
 .sidebar-footer{
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 6px 4px 2px;
+  display: flex; align-items: center;
+  padding: 8px 14px 8px 12px;
   margin-top: 4px;
-  gap: 6px;
+  gap: 4px;
 }
-.sidebar-footer .mono{ font-size: 10px; color: #555B63; letter-spacing: 0.06em;}
+/* 真实 mux0 footer: "Mux0 v{version}" 品牌按钮 + 可选更新红点 + spacer + gear */
+.footer-brand{
+  display: inline-flex; align-items: baseline; gap: 5px;
+  background: transparent; border: 0; padding: 2px 0; cursor: pointer;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+.footer-brand .b-name{ font-size: 11px; font-weight: 500; color: var(--term-fg); }
+.footer-brand .b-ver{ font-size: 11px; font-weight: 400; color: var(--term-dim); }
+.footer-update-dot{
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--s-failed); flex-shrink: 0;
+  animation: blink 1.6s steps(1) infinite;
+}
+.footer-spacer{ flex: 1; }
 
 /* main pane — 真实 mux0 里这里是独立的圆角卡片：
    top 与 win-bar(traffic-light 带)齐平，右/下 8px 内缩，露出 sidebar 底色 */
@@ -525,12 +632,13 @@ h1.hero-title{
   margin: 0 8px 8px 0;
   border-radius: 10px;
 }
-/* Tab bar = strip 容器 (sidebar 底色) + 右侧独立 "+" 按钮 */
+/* Tab bar = 圆角 strip 容器 (sidebar 底色) + 右侧独立 "+" 按钮
+   1:1 对齐真实 mux0 TabBarView：strip 高 32 / 4pt 外内缩，pill 高 26 / 3pt 内缩 / 6 圆角 */
 .tab-bar{
   display: flex;
-  align-items: stretch;
+  align-items: center;
   gap: 0;
-  padding: 3px;
+  padding: 4px;
   background: transparent;
   min-width: 0;
 }
@@ -541,23 +649,23 @@ h1.hero-title{
   gap: 3px;
   padding: 3px;
   background: var(--term-sidebar);
-  border-radius: 7px;
+  border-radius: 8px;
   overflow-x: auto;
   scrollbar-width: none;
   min-width: 0;
-  height: 28px;
+  height: 32px;
 }
 .tab-strip::-webkit-scrollbar{ display: none;}
 .tab-bar .tbi{
   display: inline-flex; align-items: center; gap: 6px;
   padding: 0 10px;
   width: 140px;
-  height: 22px;
+  height: 26px;
   flex-shrink: 0;
-  color: #8A919B;
-  font-family:'JetBrains Mono', monospace;
-  font-size: 11.5px;
-  border-radius: 4px;
+  color: var(--term-dim);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-size: 11px;
+  border-radius: 6px;
   cursor: pointer;
   user-select: none;
   overflow: hidden;
@@ -565,14 +673,34 @@ h1.hero-title{
   border: 0; background: transparent;
   transition: color .12s, background .12s;
 }
-.tab-bar .tbi:hover{ color: #D5DAE1; background: rgba(255,255,255,0.04);}
+/* selected pill = canvas，文字 textPrimary */
 .tab-bar .tbi.active{
-  color: #F1F4F8;
+  color: var(--term-fg);
   background: var(--term-bg);
 }
-.tab-bar .tbi.dragging{ opacity: 0.4;}
+/* hover = canvas × 50%（比 selected 浅一档），文字保持 textSecondary（不提亮） */
+.tab-bar .tbi:hover{
+  color: var(--term-dim);
+  background: color-mix(in srgb, var(--term-bg) 50%, transparent);
+}
+.tab-bar .tbi.active:hover{ background: var(--term-bg); }
+.tab-bar .tbi.dragging{ opacity: 0.35;}
 .tab-bar .tbi.drop-before{ box-shadow: inset 2px 0 0 var(--s-running);}
 .tab-bar .tbi.drop-after{ box-shadow: inset -2px 0 0 var(--s-running);}
+/* 竖直分隔线 (border token)：仅在两侧均非 active/hover、且非最后一个、且无拖拽时显示 */
+.tab-strip .tbi::after{
+  content: ""; position: absolute; right: -2px; top: 25%;
+  width: 1px; height: 50%;
+  background: var(--term-border);
+  pointer-events: none;
+}
+.tab-strip .tbi:last-child::after,
+.tab-strip .tbi.active::after,
+.tab-strip .tbi:hover::after,
+.tab-strip .tbi:has(+ .tbi.active)::after,
+.tab-strip .tbi:has(+ .tbi:hover)::after,
+.tab-strip:has(.tbi.dragging) .tbi::after{ display: none; }
+.tab-bar .tbi .t-kind{ flex-shrink: 0; color: currentColor; }
 .tab-bar .tbi .tn{
   flex: 1;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -583,21 +711,15 @@ h1.hero-title{
   display: inline-flex; align-items: center; justify-content: center;
   align-self: center;
   width: 22px; height: 22px;
-  color: #8A919B; background: transparent;
+  color: var(--term-dim); background: transparent;
   border: 1px solid transparent; cursor: pointer;
   padding: 0;
   flex-shrink: 0;
   border-radius: 6px;
-  margin-left: 3px;
+  margin-left: 5px;
   transition: background .12s, color .12s, border-color .12s;
 }
-.tab-bar .tab-add:hover{ color: #E7EAEE; background: rgba(255,255,255,0.05);}
-
-/* Light theme tweaks — 真实主题下 strip / active pill 会跟随 ghostty 主题染色；
-   我们这里没 ghostty 取色，按深色设计的同样结构映射到浅色背景。 */
-:root:not(.dark) .tab-bar .tbi:hover{ background: rgba(0,0,0,0.04); color: #1E2228; }
-:root:not(.dark) .tab-bar .tbi.active{ background: var(--term-bg); color: #F1F4F8;}
-:root:not(.dark) .tab-bar .tab-add:hover{ background: rgba(0,0,0,0.05); color: #1E2228; }
+.tab-bar .tab-add:hover{ color: var(--term-fg); background: color-mix(in srgb, var(--term-fg) 8%, transparent);}
 :root:not(.dark) .side-icon:hover{ background: rgba(0,0,0,0.05); color: #1E2228; }
 
 /* terminal pane */
@@ -612,29 +734,29 @@ h1.hero-title{
   cursor: text;
 }
 .term-pane::-webkit-scrollbar{ width: 6px;}
-.term-pane::-webkit-scrollbar-thumb{ background: rgba(255,255,255,0.06); border-radius: 3px;}
+.term-pane::-webkit-scrollbar-thumb{ background: var(--term-border); border-radius: 3px;}
 .term-line{ white-space: pre-wrap; word-break: break-word;}
 .term-input-row{ display: flex; align-items: baseline; gap: 4px; white-space: pre-wrap;}
 .term-input-row .input{
   flex: 1;
-  color: #E7EAEE;
-  caret-color: #D5DAE1;
+  color: var(--term-fg);
+  caret-color: var(--term-cursor);
   outline: none;
   min-width: 1ch;
   white-space: pre-wrap;
   word-break: break-word;
 }
-.prompt-head .p{ color:#7FA4BF;}
-.prompt-head .b{ color:#7A818B;}
-.prompt-head .c{ color:#A3C8DC;}
-.muted{ color: #7A818B;}
-.ok{ color: var(--s-success);}
-.warn{ color: var(--s-needs);}
-.err{ color: var(--s-failed);}
-.acc{ color: #A3C8DC;}
-.bracket{ color: #5B626B;}
+.prompt-head .p{ color: var(--term-prompt-path);}
+.prompt-head .b{ color: var(--term-prompt-branch);}
+.prompt-head .c{ color: var(--term-prompt-caret);}
+.muted{ color: var(--out-muted);}
+.ok{ color: var(--out-ok);}
+.warn{ color: var(--out-warn);}
+.err{ color: var(--out-err);}
+.acc{ color: var(--out-acc);}
+.bracket{ color: var(--term-tertiary);}
 .caret{
-  display:inline-block; width: 7px; height: 1.05em; background: #D5DAE1; transform: translateY(2px);
+  display:inline-block; width: 7px; height: 1.05em; background: var(--term-cursor); transform: translateY(2px);
   animation: blink 1.1s steps(1) infinite;
 }
 @keyframes blink{ 50%{ opacity: 0;} }
@@ -1171,6 +1293,21 @@ kbd{
       <rect x="2" y="3" width="12" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/>
       <line x1="6" y1="3" x2="6" y2="13" stroke="currentColor" stroke-width="1.2"/>
     </symbol>
+    <symbol id="icon-terminal" viewBox="0 0 16 16">
+      <rect x="1.6" y="2.6" width="12.8" height="10.8" rx="2" fill="none" stroke="currentColor" stroke-width="1.2"/>
+      <polyline points="4.5,6 7,8 4.5,10" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="8" y1="10.4" x2="11" y2="10.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="icon-agent" viewBox="0 0 16 16">
+      <path d="M8 1.6 L9.3 5.2 L12.9 6.4 L9.3 7.6 L8 11.2 L6.7 7.6 L3.1 6.4 L6.7 5.2 Z" fill="currentColor"/>
+      <circle cx="12.4" cy="11.8" r="1.7" fill="currentColor"/>
+    </symbol>
+    <symbol id="icon-palette" viewBox="0 0 16 16">
+      <path d="M8 1.6c3.5 0 6.4 2.6 6.4 5.8 0 2-1.7 3.1-3.3 3.1H9.7c-.7 0-1.1.5-1.1 1.1 0 .3.1.5.3.8.2.3.3.5.3.8 0 .7-.6 1.2-1.5 1.2C4.4 16 1.6 12.9 1.6 9 1.6 4.8 4.6 1.6 8 1.6Z" fill="none" stroke="currentColor" stroke-width="1.2"/>
+      <circle cx="5" cy="7" r="1" fill="currentColor"/>
+      <circle cx="8" cy="5" r="1" fill="currentColor"/>
+      <circle cx="11" cy="7" r="1" fill="currentColor"/>
+    </symbol>
   </defs>
 </svg>
 
@@ -1229,25 +1366,33 @@ kbd{
         <div class="win" id="preview-win">
           <div class="win-bar">
             <div class="tl-dots" aria-hidden="true"><i></i><i></i><i></i></div>
-            <button class="win-sidebar-toggle" id="sidebar-mobile-toggle" aria-label="Toggle sidebar">
-              <svg width="14" height="14"><use href="#icon-sidebar"/></svg>
-            </button>
+            <div class="win-bar-controls">
+              <button class="side-icon" id="ws-add" aria-label="Add workspace" title="Add workspace">
+                <svg width="12" height="12"><use href="#icon-plus"/></svg>
+              </button>
+              <button class="win-sidebar-toggle" id="sidebar-mobile-toggle" aria-label="Toggle sidebar">
+                <svg width="14" height="14"><use href="#icon-sidebar"/></svg>
+              </button>
+            </div>
             <div class="win-bar-spacer"></div>
+            <button class="theme-switch" id="term-theme-btn" aria-label="Switch terminal theme" title="Switch terminal theme">
+              <svg class="ts-ico" width="13" height="13"><use href="#icon-palette"/></svg>
+              <span class="ts-name" id="term-theme-name">mux0</span>
+              <svg class="ts-chev" width="11" height="11" viewBox="0 0 16 16"><polyline points="4,6 8,10 12,6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
           </div>
           <div class="win-body">
             <div class="sidebar-scrim" id="sidebar-scrim"></div>
 
             <!-- sidebar -->
             <aside class="sidebar" id="sidebar">
-              <div class="sidebar-header">
-                <span class="side-label" data-i18n="sidebar.workspaces">WORKSPACES</span>
-                <button class="side-icon" id="ws-add" aria-label="Add workspace" title="Add workspace">
-                  <svg width="12" height="12"><use href="#icon-plus"/></svg>
-                </button>
-              </div>
               <div class="ws-list" id="ws-list"></div>
               <div class="sidebar-footer">
-                <span class="mono">v0.8.2</span>
+                <button class="footer-brand" data-disabled-msg title="Check for updates" aria-label="Mux0 — check for updates">
+                  <span class="b-name">Mux0</span><span class="b-ver">v0.8.2</span>
+                </button>
+                <span class="footer-update-dot" aria-hidden="true"></span>
+                <span class="footer-spacer"></span>
                 <button class="side-icon disabled" data-disabled-msg title="Settings" aria-label="Settings (disabled in preview)">
                   <svg width="13" height="13"><use href="#icon-gear"/></svg>
                 </button>
@@ -1733,7 +1878,8 @@ const i18n = {
     "ctx.rename": "Rename",
     "ctx.delete": "Delete",
     "ctx.close": "Close",
-    "ctx.newTab": "New tab"
+    "ctx.newTab": "New tab",
+    "ctx.terminal": "Terminal"
   },
   zh: {
     "nav.features": "功能",
@@ -1858,7 +2004,8 @@ const i18n = {
     "ctx.rename": "重命名",
     "ctx.delete": "删除",
     "ctx.close": "关闭",
-    "ctx.newTab": "新建标签"
+    "ctx.newTab": "新建标签",
+    "ctx.terminal": "终端"
   }
 };
 
@@ -1888,6 +2035,143 @@ function applyTheme(theme){
   localStorage.setItem("mux0.theme", theme);
 }
 
+/* ==================== TERMINAL THEME SWITCHER ==================== */
+/* ~20 套常见 ghostty 主题，调色板从仓库自带 Vendor/ghostty/share/ghostty/themes 提取 */
+const TERM_THEMES = [
+  {n:"Dracula",m:"dark",bg:"#282a36",fg:"#f8f8f2",cu:"#f8f8f2",se:"#44475a",p:["#21222c","#ff5555","#50fa7b","#f1fa8c","#bd93f9","#ff79c6","#8be9fd","#f8f8f2","#6272a4","#ff6e6e","#69ff94","#ffffa5","#d6acff","#ff92df","#a4ffff","#ffffff"]},
+  {n:"Tokyo Night",m:"dark",bg:"#24283b",fg:"#c0caf5",cu:"#c0caf5",se:"#364a82",p:["#1d202f","#f7768e","#9ece6a","#e0af68","#7aa2f7","#bb9af7","#7dcfff","#a9b1d6","#4e5575","#f7768e","#9ece6a","#e0af68","#7aa2f7","#bb9af7","#7dcfff","#c0caf5"]},
+  {n:"Catppuccin Mocha",m:"dark",bg:"#1e1e2e",fg:"#cdd6f4",cu:"#f5e0dc",se:"#585b70",p:["#45475a","#f38ba8","#a6e3a1","#f9e2af","#89b4fa","#f5c2e7","#94e2d5","#a6adc8","#585b70","#f37799","#89d88b","#ebd391","#74a8fc","#f2aede","#6bd7ca","#bac2de"]},
+  {n:"Nord",m:"dark",bg:"#2e3440",fg:"#d8dee9",cu:"#eceff4",se:"#eceff4",p:["#3b4252","#bf616a","#a3be8c","#ebcb8b","#81a1c1","#b48ead","#88c0d0","#e5e9f0","#596377","#bf616a","#a3be8c","#ebcb8b","#81a1c1","#b48ead","#8fbcbb","#eceff4"]},
+  {n:"Gruvbox Dark",m:"dark",bg:"#282828",fg:"#ebdbb2",cu:"#ebdbb2",se:"#665c54",p:["#282828","#cc241d","#98971a","#d79921","#458588","#b16286","#689d6a","#a89984","#928374","#fb4934","#b8bb26","#fabd2f","#83a598","#d3869b","#8ec07c","#ebdbb2"]},
+  {n:"One Dark",m:"dark",bg:"#21252b",fg:"#abb2bf",cu:"#abb2bf",se:"#323844",p:["#21252b","#e06c75","#98c379","#e5c07b","#61afef","#c678dd","#56b6c2","#abb2bf","#767676","#e06c75","#98c379","#e5c07b","#61afef","#c678dd","#56b6c2","#abb2bf"]},
+  {n:"GitHub Dark",m:"dark",bg:"#0d1117",fg:"#e6edf3",cu:"#2f81f7",se:"#e6edf3",p:["#484f58","#ff7b72","#3fb950","#d29922","#58a6ff","#bc8cff","#39c5cf","#b1bac4","#6e7681","#ffa198","#56d364","#e3b341","#79c0ff","#d2a8ff","#56d4dd","#ffffff"]},
+  {n:"Tomorrow Night",m:"dark",bg:"#1d1f21",fg:"#c5c8c6",cu:"#c5c8c6",se:"#373b41",p:["#000000","#cc6666","#b5bd68","#f0c674","#81a2be","#b294bb","#8abeb7","#ffffff","#4c4c4c","#cc6666","#b5bd68","#f0c674","#81a2be","#b294bb","#8abeb7","#ffffff"]},
+  {n:"Ayu Mirage",m:"dark",bg:"#1f2430",fg:"#cccac2",cu:"#ffcc66",se:"#409fff",p:["#171b24","#ed8274","#87d96c","#facc6e","#6dcbfa","#dabafa","#90e1c6","#c7c7c7","#686868","#f28779","#d5ff80","#ffd173","#73d0ff","#dfbfff","#95e6cb","#ffffff"]},
+  {n:"Rosé Pine",m:"dark",bg:"#191724",fg:"#e0def4",cu:"#e0def4",se:"#403d52",p:["#26233a","#eb6f92","#31748f","#f6c177","#9ccfd8","#c4a7e7","#ebbcba","#e0def4","#6e6a86","#eb6f92","#31748f","#f6c177","#9ccfd8","#c4a7e7","#ebbcba","#e0def4"]},
+  {n:"Kanagawa Wave",m:"dark",bg:"#1f1f28",fg:"#dcd7ba",cu:"#dcd7ba",se:"#2d4f67",p:["#090618","#c34043","#76946a","#c0a36e","#7e9cd8","#957fb8","#6a9589","#c8c093","#727169","#e82424","#98bb6c","#e6c384","#7fb4ca","#938aa9","#7aa89f","#dcd7ba"]},
+  {n:"Everforest Dark",m:"dark",bg:"#1e2326",fg:"#d3c6aa",cu:"#e69875",se:"#4c3743",p:["#7a8478","#e67e80","#a7c080","#dbbc7f","#7fbbb3","#d699b6","#83c092","#f2efdf","#a6b0a0","#f85552","#8da101","#dfa000","#3a94c5","#df69ba","#35a77c","#fffbef"]},
+  {n:"Monokai Pro",m:"dark",bg:"#2d2a2e",fg:"#fcfcfa",cu:"#c1c0c0",se:"#5b595c",p:["#2d2a2e","#ff6188","#a9dc76","#ffd866","#fc9867","#ab9df2","#78dce8","#fcfcfa","#727072","#ff6188","#a9dc76","#ffd866","#fc9867","#ab9df2","#78dce8","#fcfcfa"]},
+  {n:"Night Owl",m:"dark",bg:"#011627",fg:"#d6deeb",cu:"#7e57c2",se:"#5f7e97",p:["#011627","#ef5350","#22da6e","#addb67","#82aaff","#c792ea","#21c7a8","#ffffff","#575656","#ef5350","#22da6e","#ffeb95","#82aaff","#c792ea","#7fdbca","#ffffff"]},
+  {n:"Cobalt2",m:"dark",bg:"#132738",fg:"#ffffff",cu:"#f0cc09",se:"#18354f",p:["#000000","#ff0000","#38de21","#ffe50a","#1460d2","#ff005d","#00bbbb","#bbbbbb","#555555","#f40e17","#3bd01d","#edc809","#5555ff","#ff55ff","#6ae3fa","#ffffff"]},
+  {n:"Solarized Dark",m:"dark",bg:"#001e27",fg:"#9eaeae",cu:"#708284",se:"#002831",p:["#002831","#d11c24","#738a05","#a57706","#2176c7","#c61c6f","#259286","#eae3cb","#475b62","#bd3613","#586e75","#657b83","#839496","#6c71c4","#93a1a1","#fcf4dc"]},
+  {n:"Synthwave 84",m:"dark",bg:"#2a2139",fg:"#f0eff1",cu:"#72f1b8",se:"#181521",p:["#171520","#f97e72","#72f1b8","#fede5d","#6d77b3","#c792ea","#f772e0","#fefefe","#848bbd","#f88414","#72f1b8","#fff951","#36f9f6","#e1acff","#f92aad","#fefefe"]},
+  {n:"Iceberg",m:"dark",bg:"#161821",fg:"#c6c8d1",cu:"#c6c8d1",se:"#272c42",p:["#1e2132","#e27878","#b4be82","#e2a478","#84a0c6","#a093c7","#89b8c2","#c6c8d1","#6b7089","#e98989","#c0ca8e","#e9b189","#91acd1","#ada0d3","#95c4ce","#d2d4de"]},
+  {n:"Snazzy",m:"dark",bg:"#1e1f29",fg:"#ebece6",cu:"#e4e4e4",se:"#81aec6",p:["#000000","#fc4346","#50fb7c","#f0fb8c","#49baff","#fc4cb4","#8be9fe","#ededec","#555555","#fc4346","#50fb7c","#f0fb8c","#49baff","#fc4cb4","#8be9fe","#ededec"]},
+  {n:"Material Ocean",m:"dark",bg:"#0f111a",fg:"#8f93a2",cu:"#ffcc00",se:"#1f2233",p:["#546e7a","#ff5370","#c3e88d","#ffcb6b","#82aaff","#c792ea","#89ddff","#ffffff","#717cb4","#ff5370","#c3e88d","#ffcb6b","#82aaff","#c792ea","#89ddff","#ffffff"]},
+  {n:"Catppuccin Latte",m:"light",bg:"#eff1f5",fg:"#4c4f69",cu:"#dc8a78",se:"#acb0be",p:["#5c5f77","#d20f39","#40a02b","#df8e1d","#1e66f5","#ea76cb","#179299","#acb0be","#6c6f85","#de293e","#49af3d","#eea02d","#456eff","#fe85d8","#2d9fa8","#bcc0cc"]},
+  {n:"GitHub Light",m:"light",bg:"#ffffff",fg:"#1f2328",cu:"#0969da",se:"#dbe6f3",p:["#24292f","#cf222e","#116329","#4d2d00","#0969da","#8250df","#1b7c83","#6e7781","#57606a","#a40e26","#1a7f37","#633c01","#218bff","#a475f9","#3192aa","#8c959f"]},
+  {n:"Gruvbox Light",m:"light",bg:"#fbf1c7",fg:"#3c3836",cu:"#3c3836",se:"#ebdbb2",p:["#fbf1c7","#cc241d","#98971a","#d79921","#458588","#b16286","#689d6a","#7c6f64","#928374","#9d0006","#79740e","#b57614","#076678","#8f3f71","#427b58","#3c3836"]}
+];
+
+function _h2r(h){ h=h.replace('#',''); if(h.length===3) h=h.split('').map(c=>c+c).join(''); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
+function _r2h(r){ return '#'+r.map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join(''); }
+function _mix(a,b,t){ const x=_h2r(a),y=_h2r(b); return _r2h([0,1,2].map(i=>x[i]+(y[i]-x[i])*t)); }
+
+/* 由 ghostty 调色板派生 mux0 chrome token + 终端输出色，与真实 AppTheme.derive 一致的混合思路 */
+function termThemeVars(th){
+  const bg=th.bg, fg=th.fg, p=th.p;
+  return {
+    '--term-bg': bg,
+    '--term-fg': fg,
+    '--term-sidebar': _mix(bg,fg,0.05),
+    '--term-dim': _mix(bg,fg,0.58),
+    '--term-tertiary': _mix(bg,fg,0.42),
+    '--term-border': _mix(bg,fg,0.13),
+    '--term-border-strong': _mix(bg,fg,0.24),
+    '--term-cursor': th.cu||fg,
+    '--out-muted': _mix(bg,fg,0.52),
+    '--out-ok': p[2],
+    '--out-warn': p[3],
+    '--out-err': p[1],
+    '--out-acc': p[6],
+    '--term-prompt-path': p[4],
+    '--term-prompt-branch': _mix(bg,fg,0.42),
+    '--term-prompt-caret': p[2]
+  };
+}
+
+const TERM_THEME_VARS = ['--term-bg','--term-fg','--term-sidebar','--term-dim','--term-tertiary','--term-border','--term-border-strong','--term-cursor','--out-muted','--out-ok','--out-warn','--out-err','--out-acc','--term-prompt-path','--term-prompt-branch','--term-prompt-caret'];
+
+function applyTermTheme(name){
+  const win = document.getElementById("preview-win");
+  const label = document.getElementById("term-theme-name");
+  if (!win) return;
+  const th = TERM_THEMES.find(t => t.n === name);
+  if (!th){
+    // 回到 mux0 原生主题：清掉 inline 覆盖，跟随站点 light/dark token
+    TERM_THEME_VARS.forEach(v => win.style.removeProperty(v));
+    if (label) label.textContent = "mux0";
+    localStorage.setItem("mux0.termTheme", "mux0");
+    return;
+  }
+  const vars = termThemeVars(th);
+  Object.entries(vars).forEach(([k,v]) => win.style.setProperty(k, v));
+  if (label) label.textContent = th.n;
+  localStorage.setItem("mux0.termTheme", th.n);
+}
+
+let _termMenuEl = null;
+function closeTermMenu(){
+  if (_termMenuEl){ _termMenuEl.remove(); _termMenuEl = null; }
+  document.removeEventListener("mousedown", _onTermMenuOutside, true);
+  document.removeEventListener("keydown", _onTermMenuKey);
+  window.removeEventListener("resize", closeTermMenu);
+  window.removeEventListener("scroll", closeTermMenu, true);
+}
+function _onTermMenuOutside(e){
+  const btn = document.getElementById("term-theme-btn");
+  if (_termMenuEl && !_termMenuEl.contains(e.target) && !(btn && btn.contains(e.target))) closeTermMenu();
+}
+function _onTermMenuKey(e){ if (e.key === "Escape") closeTermMenu(); }
+function swatchHtml(th){
+  if (!th){ // 原生 mux0 swatch
+    return `<span class="sw"><i class="sw-bg" style="background:#121213"></i>`+
+      `<i class="sw-dot" style="background:#F3A832"></i><i class="sw-dot" style="background:#3FBA50"></i>`+
+      `<i class="sw-dot" style="background:#F85149"></i><i class="sw-dot" style="background:#A3C8DC"></i></span>`;
+  }
+  const d = [th.p[1],th.p[2],th.p[4],th.p[5]];
+  return `<span class="sw"><i class="sw-bg" style="background:${th.bg}"></i>`+
+    d.map(c=>`<i class="sw-dot" style="background:${c}"></i>`).join("")+`</span>`;
+}
+function openTermMenu(){
+  closeTermMenu();
+  const btn = document.getElementById("term-theme-btn");
+  const cur = localStorage.getItem("mux0.termTheme") || "mux0";
+  const menu = document.createElement("div");
+  menu.className = "theme-menu";
+  menu.innerHTML = `<div class="theme-menu-head">Terminal theme</div>`;
+  const mkItem = (th) => {
+    const name = th ? th.n : "mux0";
+    const b = document.createElement("button");
+    b.className = "theme-item" + (cur === name ? " active" : "");
+    b.innerHTML = swatchHtml(th)
+      + `<span class="tlabel">${th ? th.n : "mux0 (native)"}</span>`
+      + `<span class="tmode">${th ? th.m : ""}</span>`
+      + `<svg class="tcheck" width="13" height="13" viewBox="0 0 16 16"><polyline points="3,8.5 6.5,12 13,4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    b.addEventListener("click", () => { applyTermTheme(name); closeTermMenu(); });
+    return b;
+  };
+  menu.appendChild(mkItem(null));
+  TERM_THEMES.forEach(th => menu.appendChild(mkItem(th)));
+  document.body.appendChild(menu);
+  // 定位：按钮下方、右对齐
+  const r = btn.getBoundingClientRect();
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  let left = Math.min(r.right - mw, window.innerWidth - mw - 8);
+  left = Math.max(8, left);
+  let top = r.bottom + 6;
+  if (top + mh + 8 > window.innerHeight) top = Math.max(8, r.top - mh - 6);
+  menu.style.left = left + "px";
+  menu.style.top = top + "px";
+  _termMenuEl = menu;
+  setTimeout(() => {
+    document.addEventListener("mousedown", _onTermMenuOutside, true);
+    document.addEventListener("keydown", _onTermMenuKey);
+    window.addEventListener("resize", closeTermMenu);
+    window.addEventListener("scroll", closeTermMenu, true);
+  }, 0);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   // theme
   const savedTheme = localStorage.getItem("mux0.theme") || "dark";
@@ -1906,6 +2190,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const next = document.documentElement.lang === "zh" ? "en" : "zh";
     applyLang(next);
   });
+
+  // terminal theme switcher (mock preview)
+  applyTermTheme(localStorage.getItem("mux0.termTheme") || "mux0");
+  const termThemeBtn = document.getElementById("term-theme-btn");
+  if (termThemeBtn){
+    termThemeBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (_termMenuEl) { closeTermMenu(); return; }
+      openTermMenu();
+    });
+  }
 
   // nav scroll state
   const nav = document.getElementById("nav");
@@ -2056,7 +2351,11 @@ function initPreview(){
       b.className = "ctx-item"
         + (it.destructive ? " destructive" : "")
         + (it.disabled ? " disabled" : "");
-      b.textContent = it.label;
+      if (it.icon){
+        b.innerHTML = `<svg class="ctx-ico" width="14" height="14"><use href="#icon-${it.icon}"/></svg><span>${escapeHtml(it.label)}</span>`;
+      } else {
+        b.textContent = it.label;
+      }
       if (!it.disabled){
         b.addEventListener("click", () => { closeContextMenu(); it.onClick?.(); });
       }
@@ -2188,8 +2487,9 @@ function initPreview(){
       item.dataset.tabId = tb.id;
       item.draggable = true;
       item.innerHTML =
+        `<svg class="t-kind" width="13" height="13"><use href="#icon-${tabKind(tb.name)}"/></svg>` +
         `<span class="tn">${escapeHtml(tb.name)}</span>` +
-        `<span class="dot t-dot ${tb.status === "neverRan" ? "idle" : tb.status}"></span>`;
+        `<span class="dot t-dot ${tb.status}"></span>`;
 
       item.addEventListener("click", () => selectTab(tb.id));
       item.addEventListener("dblclick", (e) => { e.preventDefault(); startRenameTab(item, tb); });
@@ -2241,7 +2541,18 @@ function initPreview(){
     add.className = "tab-add";
     add.title = t("ctx.newTab");
     add.innerHTML = `<svg width="12" height="12"><use href="#icon-plus"/></svg>`;
-    add.addEventListener("click", addTab);
+    // 真实 mux0 (c9b7e07): "+" 不再直接新建，而是弹出 Terminal + Quick Actions 下拉
+    add.addEventListener("click", (e) => {
+      e.preventDefault();
+      const r = add.getBoundingClientRect();
+      openContextMenu(r.left, r.bottom + 4, [
+        { label: t("ctx.terminal"), icon: "terminal", onClick: () => addTab("zsh") },
+        { separator: true },
+        { label: "claude",   icon: "agent", onClick: () => addQuickActionTab("claude") },
+        { label: "codex",    icon: "agent", onClick: () => addQuickActionTab("codex") },
+        { label: "opencode", icon: "agent", onClick: () => addQuickActionTab("opencode") }
+      ]);
+    });
     tabBar.appendChild(add);
   }
 
@@ -2444,6 +2755,13 @@ function initPreview(){
 
   function setTabStatus(tab, status){ tab.status = status; }
 
+  // 真实 mux0: agent 标签 (claude/codex/opencode) 用 agent 图标，其余 shell 类用 terminal 图标
+  const AGENT_NAMES = ["claude","codex","opencode","gemini","aider"];
+  function tabKind(name){
+    const n = String(name || "").toLowerCase().trim();
+    return AGENT_NAMES.some(a => n === a || n.startsWith(a + " ")) ? "agent" : "terminal";
+  }
+
   function aggregateStatus(ws){
     if (!ws.tabs.length) return "neverRan";
     const order = ["needs","failed","running","success","idle","neverRan"];
@@ -2522,18 +2840,34 @@ function initPreview(){
     ws.selectedTabId = tabId;
     renderTabBar(); renderTerminal();
   }
-  function addTab(){
+  function addTab(forcedName){
     const ws = getSelWs(); if (!ws) return;
-    const names = ["zsh","claude","codex","opencode","pnpm dev","build","test"];
-    const existing = new Set(ws.tabs.map(t => t.name));
-    const base = names.find(n => !existing.has(n)) || "zsh";
+    let name = forcedName;
+    if (!name){
+      const names = ["zsh","pnpm dev","build","test"];
+      const existing = new Set(ws.tabs.map(t => t.name));
+      name = names.find(n => !existing.has(n)) || "zsh";
+    }
     const tab = {
-      id: uid(), name: base, status: "idle",
+      id: uid(), name, status: "idle",
       pwd: "~/code/" + ws.name, history: []
     };
     ws.tabs.push(tab);
     ws.selectedTabId = tab.id;
     renderTabBar(); renderTerminal(); renderSidebar();
+  }
+  // Quick Action 新建：开一个 agent 标签并立即跑该 agent（演示下拉里的快捷操作）
+  function addQuickActionTab(agent){
+    const ws = getSelWs(); if (!ws) return;
+    const tab = {
+      id: uid(), name: agent, status: "idle",
+      pwd: "~/code/" + ws.name, history: []
+    };
+    ws.tabs.push(tab);
+    ws.selectedTabId = tab.id;
+    renderTabBar(); renderTerminal(); renderSidebar();
+    renderTerminal._userInteracted = true;
+    runAgent(ws, tab, agent);
   }
   function closeTab(tabId){
     const ws = getSelWs(); if (!ws) return;
