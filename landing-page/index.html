@@ -316,7 +316,7 @@ h1.hero-title{
 /* 主题切换器：落地页控件，置于预览窗口下方（用页面 chrome token，不随终端主题变色） */
 .preview-toolbar{
   display: flex; align-items: center; justify-content: center; gap: 10px;
-  margin-top: 16px;
+  margin-bottom: 18px;
 }
 .preview-toolbar .ptb-label{
   font-family:'JetBrains Mono', monospace;
@@ -379,24 +379,31 @@ h1.hero-title{
 .theme-item .tmode{ flex-shrink: 0; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-3); }
 
 .win-body{
-  display: grid;
-  grid-template-columns: 200px 1fr;
+  display: flex;
   height: 736px;
   color: var(--term-fg);
   position: relative;
   background: var(--term-sidebar);
-  transition: grid-template-columns .22s ease;
+  overflow: hidden;
 }
 .sidebar-scrim{ display: none; }
-/* 桌面收缩：toggle 隐藏 sidebar，card 左缩到 cardInset(4)；tab strip 保留 leading
-   reserve(sidebarWidth - xs = 196) 让它停在原窗口 x，避开左上角控件（对齐真实 mux0）。 */
-.win.collapsed .win-body{ grid-template-columns: 0 1fr; }
-.win.collapsed .sidebar{ opacity: 0; pointer-events: none; }
-.win.collapsed #ws-add{ opacity: 0; pointer-events: none; }
-.win.collapsed .main-pane{ margin-left: 4px; }
-.win.collapsed .tab-bar{ padding-left: 196px; }
+/* 桌面收缩：sidebar 用 margin-left 平滑滑出（main-pane 顺势填满），tab strip 用等量
+   padding-left 抵消位移、始终停在原窗口 x —— 全程只动可平滑过渡的属性，避免 grid
+   过渡卡顿造成的抖动与 strip 从最左闪出/重叠。收缩态左上角改显示品牌名 + 齿轮。 */
+.win.collapsed .sidebar{ margin-left: -200px; opacity: 0; pointer-events: none; }
+.win.collapsed #ws-add{ display: none; }
+.win.collapsed .tab-bar{ padding-left: 200px; }
+/* 收缩态左上角品牌名 + 齿轮（toggle 常驻），对齐真实 mux0：brand≈x84、gear≈x138、toggle≈x164 */
+.win-top-collapsed{
+  position: absolute; z-index: 6;
+  top: 14px; left: 84px;
+  display: none; align-items: center; gap: 5px;
+}
+.win.collapsed .win-top-collapsed{ display: flex; }
+#collapsed-gear{ display: none; }
+.win.collapsed #collapsed-gear{ display: inline-flex; }
 @media (max-width: 680px){
-  .win-body{ grid-template-columns: 1fr; height: 864px; }
+  .win-body{ height: 864px; }
   .sidebar{
     position: absolute;
     inset: 0 auto 0 0;
@@ -408,7 +415,10 @@ h1.hero-title{
     background: var(--term-sidebar);
   }
   .sidebar.open{ transform: translateX(0);}
+  /* 窄屏用 transform drawer，不走桌面 margin/padding 收缩 */
+  .win.collapsed .sidebar{ margin-left: 0; opacity: 1; }
   .win.collapsed .tab-bar{ padding-left: 4px; }
+  .win.collapsed .win-top-collapsed{ display: none; }
   .sidebar-scrim{
     display: block;
     position: absolute; inset: 0; background: rgba(0,0,0,0.3);
@@ -421,12 +431,13 @@ h1.hero-title{
   /* 列表首行距窗口顶 = trafficLightInset(28) + 列表 top padding(lg+xs=20) = 48；
      左右 outerHorizontalInset = sm(8)。 */
   padding: 48px 8px 0 8px;
+  width: 200px; flex-shrink: 0;
   font-family:'JetBrains Mono', monospace;
   font-size: 12px;
   display: flex; flex-direction: column;
   height: 100%;
   min-height: 0;
-  transition: opacity .18s ease;
+  transition: margin-left .22s ease, opacity .2s ease;
 }
 .sidebar-header{
   display: flex; align-items: center; justify-content: space-between;
@@ -650,11 +661,10 @@ h1.hero-title{
   grid-template-rows: auto 1fr;
   background: var(--term-bg);
   overflow: hidden;
-  min-width: 0;
+  flex: 1; min-width: 0;
   /* card 内缩 = DT.Space.xs(4)：top/right/bottom 各 4，left 0（贴 sidebar）；圆角 = DT.Radius.card(12) */
   margin: 4px 4px 4px 0;
   border-radius: 12px;
-  transition: padding-left .22s ease, margin-left .22s ease;
 }
 /* Tab bar = 圆角 strip 容器 (sidebar 底色) + 右侧独立 "+" 按钮
    1:1 对齐真实 mux0 TabBarView：strip 高 32 / 4pt 外内缩，pill 高 26 / 3pt 内缩 / 6 圆角 */
@@ -665,6 +675,7 @@ h1.hero-title{
   padding: 4px;
   background: transparent;
   min-width: 0;
+  transition: padding-left .22s ease;
 }
 .tab-strip{
   flex: 1;
@@ -1387,14 +1398,33 @@ kbd{
 
     <!-- hero window (interactive) -->
     <div class="hero-stage reveal">
+      <!-- 主题切换器：落地页控件（不属于真实 app UI），放在终端窗口上方便于发现 -->
+      <div class="preview-toolbar reveal">
+        <span class="ptb-label" data-i18n="preview.themeLabel">Try a terminal theme</span>
+        <button class="theme-switch" id="term-theme-btn" aria-label="Switch terminal theme" title="Switch terminal theme">
+          <svg class="ts-ico" width="13" height="13"><use href="#icon-palette"/></svg>
+          <span class="ts-name" id="term-theme-name">mux0 (native)</span>
+          <svg class="ts-chev" width="11" height="11" viewBox="0 0 16 16"><polyline points="4,6 8,10 12,6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
       <div class="hero-window">
         <div class="win" id="preview-win">
           <!-- 红绿灯 + 顶部控件：绝对定位覆盖在 sidebar 列顶部，与 tab strip 同一行
                （对齐真实 mux0 ContentView：toggle 中心 x=sidebarWidth-25，加号在其左侧） -->
           <div class="tl-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+          <!-- 收缩态左上角品牌名（对齐真实 mux0 collapsedBrandButton，leading≈84） -->
+          <div class="win-top-collapsed">
+            <button class="footer-brand" data-disabled-msg title="Check for updates" aria-label="Mux0 — check for updates">
+              <span class="b-name">Mux0</span>
+            </button>
+            <span class="footer-update-dot" aria-hidden="true"></span>
+          </div>
           <div class="win-top-controls">
             <button class="side-icon" id="ws-add" aria-label="Add workspace" title="Add workspace">
               <svg width="15" height="15"><use href="#icon-plus"/></svg>
+            </button>
+            <button class="side-icon" id="collapsed-gear" data-disabled-msg title="Settings" aria-label="Settings (disabled in preview)">
+              <svg width="15" height="15"><use href="#icon-gear"/></svg>
             </button>
             <button class="side-icon" id="sidebar-toggle" aria-label="Toggle sidebar" title="Hide sidebar">
               <svg width="15" height="15"><use href="#icon-sidebar"/></svg>
@@ -1429,15 +1459,6 @@ kbd{
           </div>
           <div class="toast" id="toast"></div>
         </div>
-      </div>
-      <!-- 主题切换器：落地页控件（不属于真实 app UI），让访客试用不同 ghostty 终端配色 -->
-      <div class="preview-toolbar reveal">
-        <span class="ptb-label" data-i18n="preview.themeLabel">Try a terminal theme</span>
-        <button class="theme-switch" id="term-theme-btn" aria-label="Switch terminal theme" title="Switch terminal theme">
-          <svg class="ts-ico" width="13" height="13"><use href="#icon-palette"/></svg>
-          <span class="ts-name" id="term-theme-name">mux0 (native)</span>
-          <svg class="ts-chev" width="11" height="11" viewBox="0 0 16 16"><polyline points="4,6 8,10 12,6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>
       </div>
       <div class="preview-caption" data-i18n="preview.caption">
         Live preview — <kbd>+</kbd> add workspace/tab · double-click to rename · drag to reorder · type a command and hit <kbd>Enter</kbd>
