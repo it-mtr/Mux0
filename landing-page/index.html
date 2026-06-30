@@ -313,31 +313,17 @@ h1.hero-title{
   .win.collapsed .win-top-controls{ left: 70px; }
 }
 
-/* 主题切换器：落地页控件，置于预览窗口下方（用页面 chrome token，不随终端主题变色） */
-.preview-toolbar{
-  display: flex; align-items: center; justify-content: center; gap: 10px;
-  margin-bottom: 18px;
+/* 切换 Mock 终端主题的 CTA 按钮（hero CTA 行，复用 .btn .btn-lg 外观） */
+.theme-cta{ gap: 7px; }
+.theme-cta:hover{ border-color: var(--accent); }
+.theme-cta .ts-ico{ flex-shrink: 0; opacity: 0.8; }
+.theme-cta .ptb-label{ color: var(--fg-3); font-weight: 500; }
+.theme-cta .ts-name{
+  max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-weight: 600;
 }
-.preview-toolbar .ptb-label{
-  font-family:'JetBrains Mono', monospace;
-  font-size: 11.5px; color: var(--fg-3); letter-spacing: 0.02em;
-}
-.theme-switch{
-  display: inline-flex; align-items: center; gap: 7px;
-  height: 30px; padding: 0 12px;
-  border-radius: 9px;
-  background: var(--panel);
-  border: 1px solid var(--border-strong);
-  color: var(--fg-2); cursor: pointer;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  font-size: 12.5px;
-  transition: background .12s, color .12s, border-color .12s;
-}
-.theme-switch:hover{ color: var(--fg); border-color: var(--accent); }
-.theme-switch .ts-ico{ flex-shrink: 0; opacity: 0.8; }
-.theme-switch .ts-name{ max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
-.theme-switch .ts-chev{ flex-shrink: 0; opacity: 0.6; }
-@media (max-width: 520px){ .preview-toolbar .ptb-label{ display: none; } }
+.theme-cta .ts-chev{ flex-shrink: 0; opacity: 0.55; margin-left: -2px; }
+@media (max-width: 520px){ .theme-cta .ptb-label{ display: none; } }
 
 /* 主题选择下拉面板 (swatch 列表) — 页面 chrome 风格 */
 .theme-menu{
@@ -1383,24 +1369,18 @@ kbd{
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.365 1.43c.09 1.33-.42 2.65-1.23 3.62-.83 1-2.19 1.78-3.54 1.67-.13-1.3.49-2.62 1.3-3.5.9-.96 2.4-1.7 3.47-1.79Zm4.32 16.25c-.6 1.37-.88 1.98-1.64 3.18-1.08 1.66-2.6 3.72-4.48 3.74-1.67.02-2.1-1.09-4.38-1.08-2.28.01-2.75 1.1-4.42 1.08-1.88-.02-3.32-1.88-4.4-3.54-3-4.6-3.31-10.01-1.46-12.89C1.19 6.25 3.3 5 5.28 5c1.93 0 3.15 1.08 4.75 1.08 1.55 0 2.5-1.08 4.74-1.08 1.77 0 3.64.96 4.96 2.62-4.36 2.39-3.65 8.6.96 10.06Z"/></svg>
         <span data-i18n="hero.cta.download">Download for macOS</span>
       </a>
-      <a class="btn btn-lg" href="https://github.com/10xChengTu/mux0" target="_blank" rel="noopener">
-        <span data-i18n="hero.cta.source">View source</span>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg>
-      </a>
+      <!-- 切换 Mock 终端主题（源码入口在导航栏的 GitHub 按钮） -->
+      <button class="btn btn-lg theme-cta" id="term-theme-btn" aria-label="Switch terminal theme" title="Switch terminal theme">
+        <svg class="ts-ico" width="15" height="15"><use href="#icon-palette"/></svg>
+        <span class="ptb-label" data-i18n="preview.themeLabel">Theme</span>
+        <span class="ts-name" id="term-theme-name">mux0 (native)</span>
+        <svg class="ts-chev" width="12" height="12" viewBox="0 0 16 16"><polyline points="4,6 8,10 12,6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
       <span class="chip-meta"><span class="mono" data-i18n="hero.meta.ver">v0.8.2</span></span>
     </div>
 
     <!-- hero window (interactive) -->
     <div class="hero-stage reveal">
-      <!-- 主题切换器：落地页控件（不属于真实 app UI），放在终端窗口上方便于发现 -->
-      <div class="preview-toolbar reveal">
-        <span class="ptb-label" data-i18n="preview.themeLabel">Try a terminal theme</span>
-        <button class="theme-switch" id="term-theme-btn" aria-label="Switch terminal theme" title="Switch terminal theme">
-          <svg class="ts-ico" width="13" height="13"><use href="#icon-palette"/></svg>
-          <span class="ts-name" id="term-theme-name">mux0 (native)</span>
-          <svg class="ts-chev" width="11" height="11" viewBox="0 0 16 16"><polyline points="4,6 8,10 12,6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>
-      </div>
       <div class="hero-window">
         <div class="win" id="preview-win">
           <!-- 红绿灯 + 顶部控件：绝对定位覆盖在 sidebar 列顶部，与 tab strip 同一行
@@ -1812,7 +1792,7 @@ const i18n = {
     "hero.meta.ver": "v0.8.2",
     "sidebar.workspaces": "WORKSPACES",
     "preview.caption": "Live preview — + add workspace/tab · double-click to rename · drag to reorder · type a command and hit Enter",
-    "preview.themeLabel": "Try a terminal theme",
+    "preview.themeLabel": "Theme",
     "why.kicker": "THREE IDEAS",
     "why.title": "Native, agent-aware, project-first.",
     "why.sub": "Three choices we made early, and kept making. The terminal we wanted after spending serious time with AI coding agents — never silent about what they're doing, never in the way when they aren't.",
@@ -1939,7 +1919,7 @@ const i18n = {
     "hero.meta.ver": "v0.8.2",
     "sidebar.workspaces": "工作区",
     "preview.caption": "实时预览 —— + 新建工作区/标签 · 双击重命名 · 拖拽排序 · 输入命令回车执行",
-    "preview.themeLabel": "试试终端主题",
+    "preview.themeLabel": "主题",
     "why.kicker": "三个理念",
     "why.title": "原生、懂 Agent、以项目为单位。",
     "why.sub": "三个我们一开始就选好的方向，也一直坚持。这是被 AI Agent 推着干活一段时间之后，我们给自己做的终端 —— Agent 在干什么时它不沉默，Agent 没事时它不碍事。",
