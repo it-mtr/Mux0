@@ -2167,8 +2167,21 @@ function closeTermMenu(){
   if (_termMenuEl){ _termMenuEl.remove(); _termMenuEl = null; }
   document.removeEventListener("mousedown", _onTermMenuOutside, true);
   document.removeEventListener("keydown", _onTermMenuKey);
-  window.removeEventListener("resize", closeTermMenu);
-  window.removeEventListener("scroll", closeTermMenu, true);
+  window.removeEventListener("resize", positionTermMenu);
+  window.removeEventListener("scroll", positionTermMenu, true);
+}
+/* 滚动/缩放时不关闭，而是让弹窗重新锚定到按钮下方（按钮随页面滚动会移动） */
+function positionTermMenu(){
+  const menu = _termMenuEl;
+  const btn = document.getElementById("term-theme-btn");
+  if (!menu || !btn) return;
+  const r = btn.getBoundingClientRect();
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  let left = Math.max(8, Math.min(r.right - mw, window.innerWidth - mw - 8));
+  let top = r.bottom + 6;
+  if (top + mh + 8 > window.innerHeight) top = Math.max(8, r.top - mh - 6);
+  menu.style.left = left + "px";
+  menu.style.top = top + "px";
 }
 function _onTermMenuOutside(e){
   const btn = document.getElementById("term-theme-btn");
@@ -2206,21 +2219,14 @@ function openTermMenu(){
   menu.appendChild(mkItem(null));
   TERM_THEMES.forEach(th => menu.appendChild(mkItem(th)));
   document.body.appendChild(menu);
-  // 定位：按钮下方、右对齐
-  const r = btn.getBoundingClientRect();
-  const mw = menu.offsetWidth, mh = menu.offsetHeight;
-  let left = Math.min(r.right - mw, window.innerWidth - mw - 8);
-  left = Math.max(8, left);
-  let top = r.bottom + 6;
-  if (top + mh + 8 > window.innerHeight) top = Math.max(8, r.top - mh - 6);
-  menu.style.left = left + "px";
-  menu.style.top = top + "px";
   _termMenuEl = menu;
+  // 定位：按钮下方、右对齐（滚动/缩放时跟随按钮重新定位，不关闭）
+  positionTermMenu();
   setTimeout(() => {
     document.addEventListener("mousedown", _onTermMenuOutside, true);
     document.addEventListener("keydown", _onTermMenuKey);
-    window.addEventListener("resize", closeTermMenu);
-    window.addEventListener("scroll", closeTermMenu, true);
+    window.addEventListener("resize", positionTermMenu);
+    window.addEventListener("scroll", positionTermMenu, true);
   }, 0);
 }
 
