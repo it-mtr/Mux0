@@ -463,7 +463,6 @@ final class TabContentView: NSView {
     private func confirmCloseTab(_ tabId: UUID) {
         guard let wsId = store?.selectedId,
               let ws = store?.workspaces.first(where: { $0.id == wsId }),
-              ws.tabs.count > 1,
               let tab = ws.tabs.first(where: { $0.id == tabId }) else { return }
 
         let terminalStatuses = tab.layout.allTerminalIds().map { terminalId in
