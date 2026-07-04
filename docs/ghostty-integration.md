@@ -62,6 +62,13 @@ GhosttyTerminalView 需要：
 | `mouseMoved(_:)` / `mouseDragged(_:)` | `ghostty_surface_mouse_pos(surface, ...)` |
 | `scrollWheel(_:)` | `ghostty_surface_mouse_scroll(surface, ...)` |
 
+## 关闭确认
+
+mux0 自己管理 tab / split 生命周期，不使用 ghostty 内建的 surface tree 关闭路径。
+因此 tab 关闭前由 `GhosttyTerminalView.needsConfirmQuit` 调用
+`ghostty_surface_needs_confirm_quit(surface)`，把 ghostty 对
+`confirm-close-surface` 和前台进程状态的判断纳入 mux0 的统一关闭确认。
+
 ## 颜色读取
 
 从 ghostty config 读颜色用于主题：

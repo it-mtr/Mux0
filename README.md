@@ -49,7 +49,7 @@ Tip: you can add as many workspaces as you like. Each one keeps its own tabs and
 ### 3. Open Tabs and Split Panes
 
 - **New tab** — `⌘T`, or the **＋** button in the tab bar.
-- **Close tab** — `⌘W`, or the ✕ button on the tab.
+- **Close tab** — `⌘W`, middle-click the tab, or use the ✕ button.
 - **Split horizontally** — `⌘D`.
 - **Split vertically** — `⌘⇧D`.
 - **Move focus between panes** — `⌘⌥` + arrow keys.

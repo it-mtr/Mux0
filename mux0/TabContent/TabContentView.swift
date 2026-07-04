@@ -1,5 +1,31 @@
 import AppKit
 
+enum TabCloseConfirmationPolicy {
+    static func needsConfirmation(setting rawSetting: String?,
+                                  statuses: [TerminalStatus],
+                                  surfaceNeedsConfirmation: Bool = false) -> Bool {
+        let setting = rawSetting?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+
+        switch setting {
+        case "false":
+            return false
+        case "always":
+            return true
+        default:
+            return surfaceNeedsConfirmation || statuses.contains { status in
+                switch status {
+                case .running, .needsInput:
+                    return true
+                case .neverRan, .idle, .success, .failed:
+                    return false
+                }
+            }
+        }
+    }
+}
+
 /// Top-level content view that combines the tab bar and the active tab's split pane.
 ///
 /// ## Caching strategy
@@ -435,10 +461,30 @@ final class TabContentView: NSView {
     // MARK: - Close confirmation
 
     private func confirmCloseTab(_ tabId: UUID) {
-        guard let window,
-              let wsId = store?.selectedId,
+        guard let wsId = store?.selectedId,
               let ws = store?.workspaces.first(where: { $0.id == wsId }),
+              ws.tabs.count > 1,
               let tab = ws.tabs.first(where: { $0.id == tabId }) else { return }
+
+        let terminalStatuses = tab.layout.allTerminalIds().map { terminalId in
+            statusStore?.status(for: terminalId) ?? .neverRan
+        }
+        let surfaceNeedsConfirmation = tab.layout.allTerminalIds().contains { terminalId in
+            terminalViews[terminalId]?.needsConfirmQuit ?? false
+        }
+        let needsConfirm = TabCloseConfirmationPolicy.needsConfirmation(
+            setting: settingsStore?.get("confirm-close-surface"),
+            statuses: terminalStatuses,
+            surfaceNeedsConfirmation: surfaceNeedsConfirmation
+        )
+
+        guard needsConfirm else {
+            store?.removeTab(id: tabId, from: wsId)
+            reloadFromStore()
+            return
+        }
+
+        guard let window else { return }
 
         let alert = NSAlert()
         alert.messageText = L10n.string("tab.close.alert.title")
@@ -486,6 +532,13 @@ final class TabContentView: NSView {
         guard let ws = store?.selectedWorkspace,
               let wsId = store?.selectedId,
               let tab = ws.selectedTab else { return }
+
+        let terminalIds = tab.layout.allTerminalIds()
+        if terminalIds.count <= 1 {
+            confirmCloseTab(tab.id)
+            return
+        }
+
         store?.closeTerminal(id: tab.focusedTerminalId, in: wsId, tabId: tab.id)
         reloadFromStore()
     }

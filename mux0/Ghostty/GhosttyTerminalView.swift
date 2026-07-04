@@ -567,6 +567,14 @@ final class GhosttyTerminalView: NSView, NSTextInputClient {
     @discardableResult
     func selectAllRows() -> Bool { runBindingAction("select_all") }
 
+    /// Mirrors ghostty's own `confirm-close-surface` decision for this surface.
+    /// Used by mux0's tab lifecycle because mux0 owns tab removal outside
+    /// ghostty's built-in surface tree.
+    var needsConfirmQuit: Bool {
+        guard let surface else { return false }
+        return ghostty_surface_needs_confirm_quit(surface)
+    }
+
     // MARK: - Standard Edit-menu actions (responder chain entry points)
     //
     // mux0App 的 Edit > Copy/Paste/Select All 用 NSApp.sendAction(:to:nil) 沿

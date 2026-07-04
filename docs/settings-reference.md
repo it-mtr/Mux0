@@ -44,7 +44,7 @@ mux0 的设置面板分成七个 tab：**Appearance（外观）**、**Font（字
 | Scrollback Limit | `scrollback-limit` | `10_000_000`（一千万字节） | 回滚缓冲区上限（字节数）。决定你往回滚能看到多少历史输出。设太大吃内存，设为 `0` 等于禁用回滚。 |
 | Copy On Select | `copy-on-select` | — | 选中文本是否自动复制。`false`：不复制（要 ⌘C）；`true`：复制到普通剪贴板；`clipboard`：复制到系统剪贴板（跨 app 可粘贴）。 |
 | Hide Mouse While Typing | `mouse-hide-while-typing` | `false` | 打字时自动隐藏鼠标指针，防止指针挡住正在输入的位置。 |
-| Confirm Close | `confirm-close-surface` | — | 关闭终端 surface 时是否弹确认框。`true`：有运行中的进程才问；`false`：从不问；`always`：总是问。防止误关正在跑的命令。 |
+| Confirm Close | `confirm-close-surface` | — | 关闭终端 surface / tab / 最后一个 pane 时是否弹确认框。`true`：有运行中的进程才问；`false`：从不问；`always`：总是问。防止误关正在跑的命令。 |
 
 ---
 
