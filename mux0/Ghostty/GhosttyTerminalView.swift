@@ -6,6 +6,7 @@ final class GhosttyTerminalView: NSView, NSTextInputClient {
     private var surface: ghostty_surface_t?
     private var displayLink: CVDisplayLink?
     private var backingObserver: NSObjectProtocol?
+    private var windowKeyObserver: NSObjectProtocol?
 
     /// While set and in the future, this (otherwise non-frontmost) surface is
     /// drawn by the displayLink so it can repaint after a size change — ghostty
@@ -347,6 +348,7 @@ final class GhosttyTerminalView: NSView, NSTextInputClient {
         guard window != nil else {
             stopDisplayLink()
             removeBackingObserver()
+            removeKeyWindowObserver()
             return
         }
         if surface == nil {
@@ -376,6 +378,7 @@ final class GhosttyTerminalView: NSView, NSTextInputClient {
         // a temporary backingScaleFactor drop during display transition permanently
         // corrupts the ghostty surface scale.
         installBackingObserver()
+        installKeyWindowObserver()
     }
 
     // MARK: - Backing scale sync
@@ -397,6 +400,42 @@ final class GhosttyTerminalView: NSView, NSTextInputClient {
         if let obs = backingObserver {
             NotificationCenter.default.removeObserver(obs)
             backingObserver = nil
+        }
+    }
+
+    // MARK: - Key-window hover cleanup
+
+    /// 窗口失去 key 时清掉链接 hover 状态。见 `mouseMoved` 的 isKeyWindow 说明：
+    /// 失焦后本 view 仍是 firstResponder，不会走 resignFirstResponder，需要单独在
+    /// 窗口 didResignKey 时收尾，避免下划线 / tooltip 滞留。
+    private func installKeyWindowObserver() {
+        removeKeyWindowObserver()
+        guard let window else { return }
+        windowKeyObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didResignKeyNotification,
+            object: window,
+            queue: .main
+        ) { [weak self] _ in
+            self?.clearHoverOnResignKey()
+        }
+    }
+
+    private func removeKeyWindowObserver() {
+        if let obs = windowKeyObserver {
+            NotificationCenter.default.removeObserver(obs)
+            windowKeyObserver = nil
+        }
+    }
+
+    /// 清掉链接 hover：隐藏 tooltip、复位光标，并 park 鼠标到无效坐标抹掉 ghostty
+    /// 自绘的链接下划线。这里不能复用 `cancelGhosttyLinkHighlight()`——它带
+    /// isKeyWindow 守卫，而此刻窗口正在失去 key，守卫会让它直接 return。
+    private func clearHoverOnResignKey() {
+        hoveredLinkURL = nil
+        linkTooltip.hide()
+        currentCursor = .iBeam
+        if let s = surface {
+            ghostty_surface_mouse_pos(s, -1, -1, ghostty_input_mods_e(rawValue: 0))
         }
     }
 
@@ -428,6 +467,7 @@ final class GhosttyTerminalView: NSView, NSTextInputClient {
     deinit {
         stopDisplayLink()
         removeBackingObserver()
+        removeKeyWindowObserver()
         if let s = surface {
             GhosttyTerminalView.viewBySurface.removeValue(forKey: OpaquePointer(s))
             ghostty_surface_free(s)
@@ -791,9 +831,14 @@ final class GhosttyTerminalView: NSView, NSTextInputClient {
 
     override func mouseMoved(with event: NSEvent) {
         // 转发 hover 位置以驱动 ghostty 的链接下划线高亮与光标形状。
-        // 安全性：tracking area 为 .activeWhenFirstResponder，仅焦点 pane 触发；
-        // 再加 isCursorOverSelf 守卫。纯 hover（无按键）不会扩选区，后台 pane 的
-        // mouseLocation 轮询问题已被现有 frontmost gate 拦住。
+        // 窗口不是 key window 时直接不处理 hover：tracking area 是
+        // .activeWhenFirstResponder，本 view 在窗口失去 key 后仍是 firstResponder，
+        // 鼠标划过依旧会触发 mouseMoved。若此时照常注入 hover，会出现「聚焦在别的
+        // 窗口/app，鼠标扫过终端里的链接也被高亮」的问题，且负责压噪音的
+        // cancelGhosttyLinkHighlight / 光标设置都带 isKeyWindow 守卫、此刻失效，
+        // 只有点亮端在跑而撤销端不跑，形成不对称。统一在这里 gate 住。
+        guard let window, window.isKeyWindow else { return }
+        // 再加 isCursorOverSelf 守卫，过滤「鼠标其实在上层 pane、下层也收到事件」。
         guard isCursorOverSelf(event) else { return }
         guard let s = surface else { return }
         let pt = flippedPoint(event.locationInWindow)
@@ -802,6 +847,17 @@ final class GhosttyTerminalView: NSView, NSTextInputClient {
         // mods 发一次 mouse_pos 清掉这里的伪造状态，故只有真·Cmd+单击才会打开链接。
         var raw = modsFromEvent(event).rawValue
         raw |= GHOSTTY_MODS_SUPER.rawValue
+        // 全屏 TUI（如 Claude Code）会开启鼠标上报，ghostty 在上报模式下默认整体禁用
+        // 链接 hover 检测（门控看 mouse_event，注入 SUPER 没用）。用 mouse_captured 精确
+        // 判断该 surface 是否处于上报模式：是则额外注入 SHIFT 触发 mouse-shift-capture，
+        // 让 ghostty 在上报模式也做链接检测；上报模式下这个 SHIFT 会被 ghostty 的
+        // mouseModsWithCapture 剥离，剩下的 mods 仍等于 ⌘，正好满足 OSC8/URL 的高亮判定，
+        // 于是 TUI 里「普通 hover（无需按 ⌘）」也能出下划线 + tooltip。非上报的普通 shell
+        // 不注入 SHIFT（否则会破坏 ⌘ 判定），走原 SUPER 路径。纯 hover 的 motion 仍照常
+        // 上报给 TUI（SHIFT 只在拖拽时才抑制上报），点击走 mouseDown 用真实 mods 不受影响。
+        if ghostty_surface_mouse_captured(s) {
+            raw |= GHOSTTY_MODS_SHIFT.rawValue
+        }
         ghostty_surface_mouse_pos(s, pt.x, pt.y, ghostty_input_mods_e(rawValue: raw))
     }
 
