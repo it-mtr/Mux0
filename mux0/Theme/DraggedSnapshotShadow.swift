@@ -66,7 +66,15 @@ enum DraggedSnapshotShadow {
         if let cgctx = NSGraphicsContext.current?.cgContext {
             cgctx.saveGState()
             cgctx.setBlendMode(.clear)
-            path.fill()
+            // 多层不透明黑 fill 会在圆角抗锯齿边缘留下 RGB=黑、alpha 部分的
+            // 残留像素；未选中 tab 的 pill 背景为 .clear，snapshot 内部透明，
+            // 这圈残留没有底色遮盖，会显现为一圈黑色圆角描边（四角最明显）。
+            // 用向外 outset 0.5pt 的 path 挖洞，让 clear 的实心区完整覆盖那圈
+            // 抗锯齿像素；被多啃掉的 0.5pt halo 内缘处于阴影渐变最内层，不可察。
+            let punch = NSBezierPath(roundedRect: cardRect.insetBy(dx: -0.5, dy: -0.5),
+                                     xRadius: cornerRadius + 0.5,
+                                     yRadius: cornerRadius + 0.5)
+            punch.fill()
             cgctx.restoreGState()
         }
 
