@@ -134,8 +134,10 @@ targets:
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_ENTITLEMENTS: mux0/mux0.entitlements
         ENABLE_HARDENED_RUNTIME: YES
-        MARKETING_VERSION: "0.8.4"
-        CURRENT_PROJECT_VERSION: "3"
+        MARKETING_VERSION: "0.8.5"
+        # 0.8.4 shipped build 3. Upstream lets CI bump this; this fork is released
+        # locally (no GitHub push), so the build number is bumped by hand.
+        CURRENT_PROJECT_VERSION: "4"
       configs:
         # Debug 构建用独立 bundle id + display name，让 TCC / LaunchServices /
         # UserDefaults / Sparkle 都按 bundle id 分家，开发实例跟 /Applications
