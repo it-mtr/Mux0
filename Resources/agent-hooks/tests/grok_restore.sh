@@ -24,6 +24,13 @@ fi
 
 set -e
 
+# Run this test with colours forced ON, even in a clean environment. The restore
+# used to enumerate snapshots with `ls`, and with CLICOLOR_FORCE=1 (set by CI
+# runners and plenty of dotfiles) the ANSI-wrapped directory name stopped being
+# a path: no backup was found and mux0's edit stayed in the user's config.toml.
+# The suite passed for weeks only because nobody had that variable exported.
+export CLICOLOR_FORCE=1 CLICOLOR=1
+
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 SCRIPT_DIR="$HERE/.."
 RESTORE="$SCRIPT_DIR/grok-restore.sh"

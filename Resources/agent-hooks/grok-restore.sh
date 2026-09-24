@@ -44,6 +44,19 @@ done
 say() { echo "grok-restore: $*"; }
 run() { if [ "$DRY" = "1" ]; then echo "  would: $*"; else "$@"; fi; }
 
+# Snapshot directories, oldest mtime first, printed one per line.
+#
+# Never `ls` here. With CLICOLOR_FORCE=1 (set by CI runners and by plenty of
+# interactive dotfiles) ls writes "\033[34m<name>\033[39;49m\033[0m", and that
+# escape sequence became part of the path: `[ -e "${snap}${path}" ]` was always
+# false, so a B-style restore printed "no backup found" and quietly left mux0's
+# edits in the user's config.toml. find + stat never colourise.
+snapshots_oldest_first() {
+    find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type d -exec stat -f '%m %N' {} + 2>/dev/null \
+        | sort -n \
+        | sed 's/^[0-9][0-9]* //'
+}
+
 # Refuse to "restore" an overlay: an overlay has no backup log and its hooks/
 # directory is ours by definition, so pointing --home at one would be a mistake.
 case "$HOME_DIR" in
@@ -65,14 +78,16 @@ if [ -f "$CHANGES" ]; then
     handled=""
     while IFS=$'\t' read -r _ts action path _reason; do
         [ -n "$path" ] || continue
+        path="${path#/}"          # snapshots are joined as "$snap/$path"
         case "$handled" in *"|$path|"*) continue ;; esac
         handled="$handled|$path|"
         src=""
-        for snap in $(ls -1dt "$BACKUP_DIR"/*/ 2>/dev/null | tail -r); do
-            if [ -z "$src" ] && [ -e "${snap}${path}" ]; then
-                src="${snap}${path}"
+        while IFS= read -r snap; do
+            [ -n "$snap" ] || continue
+            if [ -z "$src" ] && [ -e "$snap/$path" ]; then
+                src="$snap/$path"
             fi
-        done
+        done < <(snapshots_oldest_first)
         case "$action" in
             new)
                 say "remove $path (created by mux0)"

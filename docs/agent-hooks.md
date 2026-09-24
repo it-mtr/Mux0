@@ -190,7 +190,11 @@ SIGKILL 还会留下孤儿。所以 `pi-wrapper.sh` 走 `pi -e <path>`：只对�
 - **`emit()` 是 `await` 的**（上限 200ms）。两个原因：(1) **顺序**——一事件一连接时
   accept 顺序由内核决定，`finished` 可能比它前面的 `running` 先被应用，之后那条
   `running` 会被 stale 保护重新盖时间戳，图标就永远转圈了；pi 会 await 每个 handler，
-  所以 await 写完就等于串行投递。(2) **不丢尾部**——pi 发完 `session_shutdown` 往往立刻
+  所以 await 写完就等于串行投递——**前提是 handler 里真的 `await emit(...)`**。
+  `ui_prompt_end` 曾写成 `emit("running")`（丢掉 Promise），结果权限确认完后的橙点
+  要等到下一条被 await 的事件才消；现在每个 emit 都必须 await，
+  `tests/pi_extension_test.py::test_pi_extension_awaits_every_emit` 静态兜这条。
+  (2) **不丢尾部**——pi 发完 `session_shutdown` 往往立刻
   `process.exit()`，还在排队的 connect 会被直接杀掉。socket 不存在时 connect 立刻
   ENOENT/ECONNREFUSED 返回，正常投递是亚毫秒级，最坏只多等 200ms。
 - `finished` 只在 `agent_end` 且**确实有 turn 开着**时发（`before_agent_start` 置位）。
@@ -288,6 +292,11 @@ A 方案（现行）不写 `~/.grok`：**唯一的痕迹是 overlay 目录**，
 支持 `--dry-run` / `--home DIR` / `--keep-overlay`，并且拒绝把 `--home` 指向 overlay 本身。
 测试见 `tests/grok_restore.sh`（含「两次快照时最早那份胜出」「用户的 `hooks/user.json` 不许动」
 「sessions/ 不许动」等断言）。
+
+> 快照目录是用 `find … -exec stat -f '%m %N'` + `sort` 枚举的，**不是 `ls`**。这脚本曾经用
+> `ls -1dt "$BACKUP_DIR"/*/` 拿快照列表，在 `CLICOLOR_FORCE=1` 的环境下目录名带上了
+> `\033[34m`，于是 `[ -e "$snap/$path" ]` 永远是假 —— 还原时打一句 `WARN no backup found`，
+> 然后把 mux0 写进 `config.toml` 的注入内容**原地留下**了。测试现在强制开着颜色跑。
 
 `~/.grok/sessions/`、`~/.grok/logs/`、`active_sessions.json` 是 **grok 自己的运行数据**，
 还原时故意不动：它们本来就是符号链接指回真实目录（见上面 sessions 契约），

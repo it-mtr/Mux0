@@ -36,6 +36,12 @@ fi
 
 set -e
 
+# Colours on, always: the fake grok used to list the overlay with `ls | sort`,
+# and under CLICOLOR_FORCE=1 the symlink `user-hook.json` came back magenta,
+# which sorted before `mux0.json` and broke the assertion. Listing must not go
+# through `ls` at all — see the same guard in tests/grok_restore.sh.
+export CLICOLOR_FORCE=1 CLICOLOR=1
+
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 SCRIPT_DIR="$HERE/.."
 WRAPPER="$SCRIPT_DIR/grok-wrapper.sh"
@@ -71,7 +77,7 @@ cat > "$FAKE_BIN/grok" <<EOF
   esac
   OVERLAY="\${GROK_HOME:-}"
   if [ -n "\$OVERLAY" ] && [ -d "\$OVERLAY" ]; then
-    echo "HOOK_FILES=\$(cd "\$OVERLAY/hooks" && ls | sort | tr '\n' ',')"
+    echo "HOOK_FILES=\$(cd "\$OVERLAY/hooks" && for f in *; do [ -e "\$f" ] || continue; printf '%s\n' "\$f"; done | sort | tr '\n' ',')"
     echo "MUX0_HOOK_JSON=\$(cat "\$OVERLAY/hooks/mux0.json" 2>/dev/null | tr -d '\n')"
     echo "CONFIG_VISIBLE=\$([ -f "\$OVERLAY/config.toml" ] && echo yes || echo no)"
     echo "SESSIONS_IS_SYMLINK=\$([ -L "\$OVERLAY/sessions" ] && echo yes || echo no)"
