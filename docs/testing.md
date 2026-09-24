@@ -23,11 +23,21 @@ xcodebuild test -project mux0.xcodeproj -scheme mux0Tests \
 xcodebuild test -project mux0.xcodeproj -scheme mux0Tests -destination 'platform=macOS'
 
 # agent-hooks 的 Python / bash / node 测试（不需要 Xcode）
+# 一条命令跑完下面所有项（每个 shell 测试在 bash 与 zsh 下各跑一遍）
+bash Resources/agent-hooks/tests/run-all.sh
+
 python3 -m pytest Resources/agent-hooks/tests/ -q     # agent-hook.py + pi 扩展（node）
 bash Resources/agent-hooks/tests/smoke.sh             # agent-hook.sh 全链路（真 Unix socket）
 bash Resources/agent-hooks/tests/codex_wrapper_cleanup.sh
 bash Resources/agent-hooks/tests/grok_wrapper_overlay.sh
+bash Resources/agent-hooks/tests/grok_restore.sh
 ```
+
+> **这些测试得用 bash 跑。** 它们都是 `#!/bin/bash`，但历史上直接用
+> `${BASH_SOURCE[0]}` 定位被测脚本——该变量在 zsh 下是空的，路径会塌到 CWD，
+> 于是「bash 下全绿」的测试在 macOS 默认登录 shell（zsh）里其实是红的。
+> 现在脚本开头会在被非 bash 启动时 `exec bash` 重新拉起自己，`run-all.sh` 则强制
+> bash + zsh 两个 shell 都要过，不要只跑一种就宣布通过。
 
 ## Test Files
 
@@ -50,13 +60,18 @@ Resources/agent-hooks/tests/
 ├── pi_extension_test.py       — 在 node 里加载 pi-extension/mux0-status.js，用假 pi 对象
 │                                回放真实事件序列，断言 socket 收到的 JSON（无 node 时自动 skip）
 ├── smoke.sh                   — agent-hook.sh 端到端：起 Unix socket，跑 claude 与 grok 的
-│                                完整事件序列（含 grok 的 idle_prompt 兜底去重），再跑 pi wrapper
+│                                完整事件序列（含 grok 的 idle_prompt 兜底去重），再跑 pi wrapper，
+│                                最后用 bash + zsh 各驱动一次 agent-hook.sh 本体 —— 这是唯一
+│                                覆盖“真正被 hook 配置 exec 的入口”的地方
 ├── codex_wrapper_cleanup.sh   — codex wrapper 的 overlay 回写（exec 吃掉 EXIT trap 的回归）
 ├── grok_wrapper_overlay.sh    — grok wrapper 的 GROK_HOME overlay：注入点、用户 hooks 保留、
                                  rename 后的文件回写、sessions 仍指回真实目录、子命令 passthrough
-└── grok_restore.sh            — grok-restore.sh：A 方案只删 overlay；B 方案按
+├── grok_restore.sh            — grok-restore.sh：A 方案只删 overlay；B 方案按
                                  .mux0-backup/CHANGES.log 倒序回放（同一路径取最早那份快照），
                                  用户的 hooks 与 sessions 断言不许动
+└── run-all.sh                 — 上面全部 + pytest 的一次性入口：每个 shell 测试在 bash 和 zsh 下
+                                 各跑一次，必须看到 OK 哨兵（不只看退出码），自带逐项超时
+                                 （macOS 没有 `timeout`，看门狗自己长）
 ```
 
 ## WorkspaceStore 隔离

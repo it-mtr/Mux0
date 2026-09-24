@@ -119,7 +119,10 @@ say "signature: $(codesign -dv "$APP" 2>&1 | awk -F= '/^Signature=/||/^Identifie
 
 # --- assemble dist/ ------------------------------------------------------
 mkdir -p "$DIST"
-ZIP_NAME="mux0-${VERSION}-universal.zip"
+ZIP_NAME="Mux0-${VERSION}.zip"
+# `Mux0-<version>.zip` is the name the release is distributed under. Upstream CI
+# calls its asset mux0-<version>-universal.zip; we do not, because a fork's
+# artifact should not look like a rename of an upstream build.
 ZIP="$DIST/$ZIP_NAME"
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/mux0-pkg.XXXXXX")
 trap 'rm -rf "$STAGE"' EXIT
@@ -134,12 +137,12 @@ say "writing $ZIP_NAME"
 # what install.sh and Finder's double-click expect.
 ditto -c -k --keepParent "$STAGE/mux0.app" "$ZIP"
 
-DMG_NAME="mux0-${VERSION}-universal.dmg"
-# Upstream's release asset is mux0-<version>-universal.dmg (create-dmg + Developer
-# ID + notarization on CI). Without a signing identity we cannot notarize, but we
-# can still hand out the same container so muscle memory and any tooling that
-# expects a .dmg keep working. install.sh reads the zip because a zip survives
-# being copied around without the quarantine hula of a mounted volume.
+DMG_NAME="Mux0-${VERSION}.dmg"
+# Same container shape as upstream's dmg (app + `/Applications` symlink) but our
+# own name, see ZIP_NAME. Built with `hdiutil -format UDZO`, no create-dmg: we
+# cannot notarize without a signing identity, but a dmg still saves the user the
+# unzip step. install.sh reads the zip, because a zip survives being copied
+# around without the quarantine hula of a mounted volume.
 DMG_STAGE=$(mktemp -d "${TMPDIR:-/tmp}/mux0-dmg.XXXXXX")
 mkdir -p "$DMG_STAGE/vol"
 ditto "$STAGE/mux0.app" "$DMG_STAGE/vol/mux0.app"
@@ -169,13 +172,14 @@ What's new
   the resume toggle (off by default — it types a command into your new tabs).
 
 Install
-    unzip mux0-${VERSION}-universal.zip        # optional; install.sh does it
+    unzip Mux0-${VERSION}.zip                   # optional; install.sh does it
     ./install.sh                                 # → /Applications/mux0.app
 
-Ad-hoc signed, not notarized: install.sh removes the quarantine attribute so a
-plain double-click works. If you unzip by hand and Finder complains, right-click
-→ Open once. Existing settings, workspaces and themes are preserved; installing
-over an older mux0 moves the previous app to \`mux0.app.bak-<timestamp>\`.
+Universal binary (arm64 + x86_64). Ad-hoc signed, not notarized: install.sh
+removes the quarantine attribute so a plain double-click works. If you unzip by
+hand and Finder complains, right-click → Open once. Quit the running mux0 first
+— install.sh refuses while it is live. Existing settings, workspaces and themes
+are preserved; the previous app moves to \`mux0-<old version>-backup.app\`.
 
 Update checks are off in this build: the appcast in Info.plist belongs to the
 upstream repo, and letting it run would replace this fork with an upstream

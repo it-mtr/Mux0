@@ -143,9 +143,9 @@ SKIP_BUILD=1 ./scripts/package-release.sh   # 只重新打包上一次构建
 
 | 文件 | 说明 |
 |---|---|
-| `mux0-<version>-universal.zip` | `ditto -c -k --keepParent`，zip 根只有一个 `mux0.app`。用户解压后 `./install.sh` 即可。 |
-| `mux0-<version>-universal.dmg` | 与上游 CI 的 `mux0-<version>-universal.dmg` 同名同结构（app + `/Applications` 软链），用 `hdiutil -format UDZO` 造，不需要 `create-dmg`。 |
-| `install.sh` | 从 `scripts/install.sh` 复制过来。解压 → 去 quarantine → 备份旧 app（`mux0.app.bak-<时间戳>`，最多留 3 份）→ `ditto` 安装 → `open`。`/Applications` 不可写自动退到 `~/Applications`。 |
+| `Mux0-<version>.zip` | `ditto -c -k --keepParent`，zip 根只有一个 `mux0.app`。用户解压后 `./install.sh` 即可。 |
+| `Mux0-<version>.dmg` | 与上游 dmg 同结构（app + `/Applications` 软链），用 `hdiutil -format UDZO` 造，不需要 `create-dmg`。名字不带 `-universal`（里面确实是 universal 二进制），fork 的产物不去撞上游资产名。 |
+| `install.sh` | 从 `scripts/install.sh` 复制过来。**先检查 mux0 是否在运行**（在跑就拒绝安装，`--force` 才继续）→ 解压 → 去 quarantine → 备份旧 app（`mux0-<旧版本号>-backup.app`，最多留 3 份）→ `ditto` 安装 → 打印装后的版本号与签名校验 → `open`。`/Applications` 不可写自动退到 `~/Applications`。 |
 | `SHA256SUMS` / `RELEASE-NOTES-<version>.md` | 校验与说明。 |
 
 与上游产物的差别，只有两处，且都是签名而非格式：
