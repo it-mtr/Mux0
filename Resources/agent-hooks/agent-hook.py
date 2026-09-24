@@ -438,12 +438,18 @@ def tool_response_had_error(resp, _depth: int = 0) -> bool:
     """Did a tool result report a failure?
 
     Claude / Codex put a boolean `is_error` on `tool_response`. Grok instead
-    returns its own tagged output (`{"type": "Bash", "Content": {...}}`) on
-    `PostToolUse` — including for a non-zero command exit — and reserves
-    `PostToolUseFailure` for dispatch/MCP failures, so accept any of
-    `is_error` / `isError` / `error` / `isFailure` at the top level or one level
-    down (its `Content` wrapper), and treat a non-empty string `error` as a
-    failure. Unknown shapes read as "no error" (fail-open, same as before).
+    returns its own tagged output on `PostToolUse` — and, importantly, **fires
+    `PostToolUse` (not `PostToolUseFailure`) for a command that exited non-zero**
+    with no `is_error` field at all; the failure is only visible in the payload's
+    structured fields (verified against grok 1.0.41):
+
+        {"type": "Bash", "exit_code": 1, "output_for_prompt": "exit: 1\\nls: ...",
+         "command": "...", "signal": null, "timed_out": false}
+
+    So: accept `is_error` / `isError` / `isFailure` booleans, a non-empty string
+    `error`, a non-zero `exit_code`, `timed_out: true`, or a non-null `signal`
+    (killed by signal), at the top level or one level down (its `Content` /
+    `content` wrapper). Unknown shapes read as "no error" (fail-open).
     """
     if not isinstance(resp, dict):
         return False
@@ -456,6 +462,13 @@ def tool_response_had_error(resp, _depth: int = 0) -> bool:
             return True
         if val is True:
             return True
+    exit_code = resp.get("exit_code")
+    if isinstance(exit_code, int) and not isinstance(exit_code, bool) and exit_code != 0:
+        return True
+    if resp.get("timed_out") is True:
+        return True
+    if resp.get("signal") not in (None, False, ""):
+        return True
     if _depth >= 1:
         return False
     for key in ("Content", "content", "toolResponse"):

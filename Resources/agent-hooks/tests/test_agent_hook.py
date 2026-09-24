@@ -628,6 +628,73 @@ def test_tool_response_had_error_grok_tagged_content():
     ok = {"type": "ListDir", "Content": {"content": "- a.txt", "absolute_root_path": "/tmp"}}
     assert agent_hook.tool_response_had_error(ok) is False
 
+def test_tool_response_had_error_grok_bash_nonzero_exit():
+    # Verified shape from grok 1.0.41: a failing `ls` fires PostToolUse (NOT
+    # PostToolUseFailure) with no is_error field anywhere — the failure is only
+    # visible in the structured fields of toolResult.
+    bad = {
+        "type": "Bash",
+        "output_for_prompt": "exit: 1\nls: /nope: No such file or directory\n",
+        "exit_code": 1,
+        "command": "ls /nope",
+        "signal": None,
+        "timed_out": False,
+    }
+    assert agent_hook.tool_response_had_error(bad) is True
+
+def test_tool_response_had_error_grok_bash_zero_exit_is_clean():
+    ok = {
+        "type": "Bash",
+        "output_for_prompt": "exit: 0\nalpha.txt\n",
+        "exit_code": 0,
+        "command": "ls",
+        "signal": None,
+        "timed_out": False,
+    }
+    assert agent_hook.tool_response_had_error(ok) is False
+
+def test_tool_response_had_error_grok_bash_timeout_or_signal():
+    assert agent_hook.tool_response_had_error(
+        {"type": "Bash", "exit_code": 0, "timed_out": True}) is True
+    assert agent_hook.tool_response_had_error(
+        {"type": "Bash", "exit_code": None, "signal": "SIGTERM"}) is True
+
+def test_grok_dispatch_posttool_exit_code_marks_turn_failed(tmp_path):
+    # The realistic grok failure path: PostToolUse carries exit_code 1 and the
+    # turn then ends cleanly (Stop reason=end_turn) — the turn must still be
+    # reported as failed, otherwise the sidebar shows a green dot for a red run.
+    sf = tmp_path / "sessions.json"
+    now = 5_000_000.0
+    agent_hook.dispatch("userpromptsubmit", "grok",
+                        {"session_id": "g1"}, "term-g", sf, now)
+    # grok's hook config maps PostToolUse -> `posttool` (same subcommand as
+    # claude) and carries the result under the top-level `toolResult` key.
+    agent_hook.dispatch("posttool", "grok",
+                        {"session_id": "g1", "tool_name": "Bash",
+                         "tool_input": {"command": "ls /nope"},
+                         "toolResult": {"type": "Bash", "exit_code": 1,
+                                        "command": "ls /nope"}},
+                        "term-g", sf, now + 1)
+    emit = agent_hook.dispatch("stop", "grok",
+                               {"session_id": "g1", "reason": "end_turn"},
+                               "term-g", sf, now + 2)
+    assert emit["event"] == "finished"
+    assert emit["exitCode"] == 1
+
+def test_grok_dispatch_posttoolfailure_marks_turn_failed(tmp_path):
+    sf = tmp_path / "sessions.json"
+    now = 5_100_000.0
+    agent_hook.dispatch("userpromptsubmit", "grok",
+                        {"session_id": "g2"}, "term-g", sf, now)
+    agent_hook.dispatch("posttoolfailure", "grok",
+                        {"session_id": "g2", "tool_name": "ReadFile",
+                         "error": "no such file"},
+                        "term-g", sf, now + 1)
+    emit = agent_hook.dispatch("stop", "grok",
+                               {"session_id": "g2", "reason": "end_turn"},
+                               "term-g", sf, now + 2)
+    assert emit["exitCode"] == 1
+
 def test_tool_response_had_error_grok_nested_flag():
     bad = {"type": "Bash", "Content": {"is_error": True, "content": "exit 1"}}
     assert agent_hook.tool_response_had_error(bad) is True

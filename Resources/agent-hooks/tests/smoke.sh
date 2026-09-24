@@ -173,6 +173,22 @@ if ! grep -q '"summary": "Files: a.txt DONE"' "$BACKSTOP_OUT"; then
     cat "$BACKSTOP_OUT" >&2; exit 1
 fi
 
+# Real grok failure shape (captured from grok 1.0.41 running `ls /nope`):
+# PostToolUse — NOT PostToolUseFailure — with the result under the top-level
+# `toolResult` key and no is_error field at all. The turn ends with
+# Stop reason=end_turn, so without reading exit_code the tab would go green.
+MARK_BASHERR=$(( $(wc -l < "$RECEIVED") ))
+run_hook prompt   grok "{\"session_id\":\"$GROK_SID\",\"sessionId\":\"$GROK_SID\"}"
+run_hook posttool grok "{\"session_id\":\"$GROK_SID\",\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"ls /nope\"},\"toolResult\":{\"type\":\"Bash\",\"exit_code\":1,\"command\":\"ls /nope\",\"signal\":null,\"timed_out\":false}}"
+run_hook stop     grok "{\"session_id\":\"$GROK_SID\",\"reason\":\"end_turn\",\"lastAssistantMessage\":\"Exit status 1\"}"
+sleep 0.4
+BASHERR_OUT="$TMPDIR_LOCAL/grok-basherr.out"
+tail -n +$(( MARK_BASHERR + 1 )) "$RECEIVED" > "$BASHERR_OUT"
+if ! grep -q '"exitCode": 1' "$BASHERR_OUT"; then
+    echo "FAIL(grok): non-zero toolResult.exit_code did not fail the turn" >&2
+    cat "$BASHERR_OUT" >&2; exit 1
+fi
+
 # ---------------------------------------------------------------------------
 # pi: shell layer (wrapper) — the extension itself is covered by
 # tests/pi_extension_test.py, which drives it in Node against a real socket.

@@ -48,7 +48,7 @@ Agent turn 没有真实的 exit code，但 Claude Code / Codex 的 `PostToolUse`
 
 **pi**（长驻扩展，与 OpenCode 同构）：`pi-extension/mux0-status.js` 在 closure 里记 `state.turnHadError`，`tool_execution_end` 的 `event.isError` 粘滞累加，`agent_end` 时 emit `finished`。
 
-**Grok**（命令行 hook）：与 Claude / Codex 共用 `agent-hook.py` 的 session 文件。grok 的 tool 报错**不在** `tool_response.is_error`（那是 Claude 的字段），而是：内置工具逻辑失败照样走 `PostToolUse`（tagged output，如 `{"type":"Bash","Content":{...}}`，`tool_response_had_error` 会递归一层 `Content` 找 `is_error`/`error`），dispatch 失败与 MCP 错误走 `PostToolUseFailure`，权限被拒走 `PermissionDenied`——后两者直接置位。turn 结束有三个互斥事件：`Stop`（`reason == "end_turn"`，正常完成）/ `StopFailure`（API 错误，exitCode 恒为 1）/ `StopCancelled`（打断、拒绝权限、`--max-turns`、no-progress，exitCode 恒为 1）。
+**Grok**（命令行 hook）：与 Claude / Codex 共用 `agent-hook.py` 的 session 文件。grok 的报错字段既不是 `tool_response` 也不是 `is_error`（那是 Claude 的形状）：结果放在**顶层 `toolResult`**，而且**命令退出码非 0 照样走 `PostToolUse`**（不是 `PostToolUseFailure`），只有结构化字段能看出失败——实测 grok 1.0.41 跑 `ls /nonexistent` 得到 `{"type":"Bash","exit_code":1,"signal":null,"timed_out":false,"output_for_prompt":"exit: 1\n..."}`，全程没有 `is_error`。所以 `tool_response_had_error` 认：`is_error`/`isError`/`isFailure` 布尔、非空字符串 `error`、**非 0 `exit_code`**、`timed_out: true`、非 null `signal`，并向下递归一层 `Content`/`content`。dispatch 失败与 MCP 错误才走 `PostToolUseFailure`，权限被拒走 `PermissionDenied`——这两个子命令直接置位。turn 结束有三个互斥事件：`Stop`（`reason == "end_turn"`，正常完成）/ `StopFailure`（API 错误，exitCode 恒为 1）/ `StopCancelled`（打断、拒绝权限、`--max-turns`、no-progress，exitCode 恒为 1）。
 
 **Turn summary**：Claude / Codex 的 `Stop` 从 `transcript_path` 读取 JSONL 最后一条 `role: "assistant"` 的 text 字段，剥掉 `<thinking>...</thinking>` 块，截到 200 chars，放进 `summary`。Grok 优先直接用 `Stop`/`StopFailure`/`StopCancelled` 事件里 grok 自带的 `lastAssistantMessage` 字段（省掉解析），缺失时回落到 `sessions/**/chat_history.jsonl` 最后一条 `type: "assistant"`（grok 的 `transcript_path` 指向 ACP `updates.jsonl`，没有 `role` 字段，Claude 那套 reader 读不了）。pi 从 `agent_end` 的 `event.messages` 里取最后一条 assistant 的 text block。OpenCode 的 summary 在 v1 里留空（它没有等价的 transcript path 参数；后续 spec 可补）。
 
@@ -187,9 +187,21 @@ SIGKILL 还会留下孤儿。所以 `pi-wrapper.sh` 走 `pi -e <path>`：只对�
 - **时间戳严格递增**（`nextAt()`）：每个事件新建一条 socket 连接，同一毫秒内的两个事件
   如果时间戳相等会被 `TerminalStatusStore.isStale` 丢掉后一个，所以手工 +1e-6。
   写完立刻 `sock.end()` 半关闭——mux0 的 listener 是 read-until-EOF 模型。
+- **`emit()` 是 `await` 的**（上限 200ms）。两个原因：(1) **顺序**——一事件一连接时
+  accept 顺序由内核决定，`finished` 可能比它前面的 `running` 先被应用，之后那条
+  `running` 会被 stale 保护重新盖时间戳，图标就永远转圈了；pi 会 await 每个 handler，
+  所以 await 写完就等于串行投递。(2) **不丢尾部**——pi 发完 `session_shutdown` 往往立刻
+  `process.exit()`，还在排队的 connect 会被直接杀掉。socket 不存在时 connect 立刻
+  ENOENT/ECONNREFUSED 返回，正常投递是亚毫秒级，最坏只多等 200ms。
 - `finished` 只在 `agent_end` 且**确实有 turn 开着**时发（`before_agent_start` 置位）。
   pi 的 `agent_settled` 表示"不会再自动续跑了"，但 summary 只在 `agent_end` 的
   `event.messages` 里，且续跑会再发一次 `before_agent_start` → 新一轮 running，语义不冲突。
+
+### turn 成功/失败
+
+pi 的 `tool_execution_end` 带 `isError`（实测：`ls /nonexistent` → `isError: true`）。
+任一 tool 报错就粘滞置位 `turnHadError`，`agent_end` 时发 `finished` 并把 `exitCode`
+设成 1，跟 claude / codex / grok 的聚合口径一致。
 
 ### needsInput：pi 没有权限提示
 

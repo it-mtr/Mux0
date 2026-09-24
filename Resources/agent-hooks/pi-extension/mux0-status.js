@@ -55,8 +55,22 @@ function nextAt() {
   return now;
 }
 
+// Handlers `await` this. Two reasons it is not fire-and-forget:
+//   1. Order. One socket per event means the kernel decides which connection
+//      mux0's listener accepts first. A `finished` could then be applied
+//      before the `running` it follows, and mux0's stale-event guard would
+//      re-stamp the later event and leave the tab spinning forever. pi awaits
+//      each handler, so awaiting the flush serialises delivery.
+//   2. Loss. `process.exit()` right after `session_shutdown` kills sockets whose
+//      connect/write is still queued, which is exactly the event that turns the
+//      icon idle.
+// A dead socket fails fast (ENOENT / ECONNREFUSED), and EMIT_TIMEOUT_MS caps the
+// wait so a wedged listener can never stall a turn for more than a fifth of a
+// second.
+const EMIT_TIMEOUT_MS = 200;
+
 function emit(event, extra) {
-  if (!enabled()) return;
+  if (!enabled()) return Promise.resolve();
   const payload = {
     terminalId: terminalId(),
     event,
@@ -67,20 +81,44 @@ function emit(event, extra) {
   const line = JSON.stringify(payload);
   logLine(`[${payload.at}] event=${event} agent=pi tid=${terminalId().slice(0, 8)}` +
     (payload.exitCode !== undefined ? ` exit=${payload.exitCode}` : ""));
-  try {
-    const sock = net.createConnection({ path: hookSocketPath() });
-    sock.setTimeout(500);
+  return new Promise((resolve) => {
+    let settled = false;
+    let sock = null;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(() => {
+      try { if (sock) sock.destroy(); } catch { /* ignore */ }
+      finish();
+    }, EMIT_TIMEOUT_MS);
+    try {
+      sock = net.createConnection({ path: hookSocketPath() });
+    } catch {
+      finish();
+      return;
+    }
     sock.on("connect", () => {
-      sock.write(line + "\n");
-      // Half-close so the listener sees EOF right away instead of waiting for
-      // the timeout — mux0's HookSocketListener reads until EOF per accept.
-      sock.end();
+      try {
+        sock.write(line + "\n", () => {
+          // Half-close so the listener sees EOF right away instead of waiting
+          // for the timeout — mux0's HookSocketListener reads until EOF per
+          // accept. `close` then resolves us.
+          try { sock.end(); } catch { finish(); }
+        });
+      } catch {
+        try { sock.destroy(); } catch { /* ignore */ }
+        finish();
+      }
     });
-    sock.on("timeout", () => sock.destroy());
-    sock.on("error", () => sock.destroy());
-  } catch {
-    /* never let a reporting failure break pi */
-  }
+    sock.on("close", finish);
+    sock.on("error", () => {
+      try { sock.destroy(); } catch { /* ignore */ }
+      finish();
+    });
+  });
 }
 
 function clip(text) {
@@ -197,7 +235,7 @@ export default function (pi) {
     }
     // pi sits idle at its prompt on launch; without this the icon would stay
     // "running" from shell preexec until the first turn ends.
-    emit("idle");
+    await emit("idle");
   });
 
   pi.on("before_agent_start", async (event, ctx) => {
@@ -210,25 +248,25 @@ export default function (pi) {
     if (id && SESSION_ID_RE.test(id)) extra.resumeCommand = `pi --session ${id}`;
     const title = titleFor(state);
     if (title) extra.sessionTitle = title;
-    emit("running", extra);
+    await emit("running", extra);
   });
 
   pi.on("tool_execution_start", async (event) => {
     const detail = describeTool(event?.toolName, event?.args);
-    emit("running", detail ? { toolDetail: detail } : {});
+    await emit("running", detail ? { toolDetail: detail } : {});
   });
 
   pi.on("tool_execution_end", async (event) => {
     if (event?.isError) state.turnHadError = true;
     // Same reason as PostToolUse in agent-hook.py: push a needsInput back to
     // running once the user answers the prompt and the tool finishes.
-    emit("running");
+    await emit("running");
   });
 
   pi.on("ui_prompt_start", async (event) => {
     // pi has no built-in permission prompt; this fires when an extension asks
     // the user something via ctx.ui.confirm/select/input/editor/custom.
-    emit("needsInput", event?.kind ? { toolDetail: `Waiting on ${event.kind}` } : {});
+    await emit("needsInput", event?.kind ? { toolDetail: `Waiting on ${event.kind}` } : {});
   });
 
   pi.on("ui_prompt_end", async () => {
@@ -243,7 +281,7 @@ export default function (pi) {
     if (summary) extra.summary = summary;
     const title = titleFor(state);
     if (title) extra.sessionTitle = title;
-    emit("finished", extra);
+    await emit("finished", extra);
     state.turnHadError = false;
   });
 
@@ -255,10 +293,10 @@ export default function (pi) {
     // Report the rename with whatever state we are actually in — `idle` after a
     // finished turn keeps the terminal success/failed state (HookDispatcher
     // ignores idle once a turn settled), `running` mid-turn keeps the spinner.
-    emit(state.turnOpen ? "running" : "idle", extra);
+    await emit(state.turnOpen ? "running" : "idle", extra);
   });
 
   pi.on("session_shutdown", async () => {
-    emit("idle");
+    await emit("idle");
   });
 }

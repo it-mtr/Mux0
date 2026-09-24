@@ -156,6 +156,19 @@ def _run_extension(tmp_path, extra_env=None):
 
     proc = subprocess.run([NODE, str(harness)], env=env, capture_output=True,
                           text=True, timeout=60)
+    # Drain before stopping the listener: node exiting does not mean the last
+    # event was accepted and read yet. Wait for a quiet period instead of a
+    # fixed sleep so the suite stays fast but never loses the tail.
+    prev, quiet_since, deadline = len(received), None, time.time() + 2.0
+    while time.time() < deadline:
+        if len(received) != prev:
+            prev, quiet_since = len(received), None
+        else:
+            if quiet_since is None:
+                quiet_since = time.time()
+            elif time.time() - quiet_since > 0.3:
+                break
+        time.sleep(0.05)
     stop.set()
     thread.join(timeout=3)
     shutil.rmtree(sock_dir, ignore_errors=True)
