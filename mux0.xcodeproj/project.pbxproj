@@ -168,7 +168,6 @@
 		81CD12FFB88B2BE6DFCE9F2A /* UpdateState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateState.swift; sourceTree = "<group>"; };
 		821BF7B943BBA8650E8769A4 /* TerminalPwdStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalPwdStoreTests.swift; sourceTree = "<group>"; };
 		829BFF63567D2305C599651B /* NotificationNamesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationNamesTests.swift; sourceTree = "<group>"; };
-		830B2ED6AC65D014EA0D7276 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 		84326382AC1806C28810AF31 /* TabContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabContentView.swift; sourceTree = "<group>"; };
 		880E1BD0DC5DE3BD5E58FDAC /* WorkspaceListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceListView.swift; sourceTree = "<group>"; };
 		8B5435F2C6AADD54DE910072 /* QuickActionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickActionTests.swift; sourceTree = "<group>"; };
@@ -212,6 +211,7 @@
 		EA1BC853B2A74058D4E3EDC4 /* LanguageStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageStoreTests.swift; sourceTree = "<group>"; };
 		EC3751AC033CB9420517920E /* TerminalTabDisplayTitleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalTabDisplayTitleTests.swift; sourceTree = "<group>"; };
 		ED0076717C7D5AA4FF63A948 /* TerminalPwdStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalPwdStore.swift; sourceTree = "<group>"; };
+		ED94B3F76A5B3DAFD2F00CBF /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 		EE58F1D0F1F79A6A03712FD9 /* DesignTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTokens.swift; sourceTree = "<group>"; };
 		EF52B8A70429B8C4F21259E8 /* TabBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarView.swift; sourceTree = "<group>"; };
 		EFFA7A6778F19840BCAE2246 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
@@ -244,6 +244,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0EE626E8C426419B967AADD2 /* Mux0 */ = {
+			isa = PBXGroup;
+			children = (
+				ED94B3F76A5B3DAFD2F00CBF /* Config.xcconfig */,
+			);
+			name = Mux0;
+			path = .;
+			sourceTree = "<group>";
+		};
 		2FB96E5465A56EFDD3EE380E /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -251,15 +260,6 @@
 				F4B27139F1EE49A3F3942275 /* mux0Tests.xctest */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		398EC5E5F6A5EC3699262CD6 /* MUX0 */ = {
-			isa = PBXGroup;
-			children = (
-				830B2ED6AC65D014EA0D7276 /* Config.xcconfig */,
-			);
-			name = MUX0;
-			path = .;
 			sourceTree = "<group>";
 		};
 		4F8B81D2162BAF843BC15DA4 /* Components */ = {
@@ -295,7 +295,7 @@
 			isa = PBXGroup;
 			children = (
 				8F879EC56F1D67764C5600D3 /* mux0 */,
-				398EC5E5F6A5EC3699262CD6 /* MUX0 */,
+				0EE626E8C426419B967AADD2 /* Mux0 */,
 				AA4BB6C5568DC3C2B9738AAB /* mux0Tests */,
 				E888840EACC9BB25B4089E7E /* Frameworks */,
 				2FB96E5465A56EFDD3EE380E /* Products */,
@@ -806,7 +806,7 @@
 		};
 		BED404A181C0A175EED09CF6 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 830B2ED6AC65D014EA0D7276 /* Config.xcconfig */;
+			baseConfigurationReference = ED94B3F76A5B3DAFD2F00CBF /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = mux0/mux0.entitlements;
@@ -819,7 +819,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
 				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/Vendor/ghostty/lib";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.8.2;
+				MARKETING_VERSION = 0.8.4;
 				MUX0_DISPLAY_NAME = Mux0;
 				OTHER_LDFLAGS = "-lghostty -lc++ -framework Carbon";
 				PRODUCT_BUNDLE_IDENTIFIER = com.mux0.app;
@@ -931,7 +931,7 @@
 		};
 		DEF80CCDBF9C05887D16217E /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 830B2ED6AC65D014EA0D7276 /* Config.xcconfig */;
+			baseConfigurationReference = ED94B3F76A5B3DAFD2F00CBF /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = mux0/mux0.entitlements;
@@ -944,7 +944,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
 				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/Vendor/ghostty/lib";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.8.2;
+				MARKETING_VERSION = 0.8.4;
 				MUX0_DISPLAY_NAME = "Mux0 Dev";
 				OTHER_LDFLAGS = "-lghostty -lc++ -framework Carbon";
 				PRODUCT_BUNDLE_IDENTIFIER = com.mux0.app.dev;
