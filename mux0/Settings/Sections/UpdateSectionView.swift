@@ -12,7 +12,8 @@ struct UpdateSectionView: View {
     /// This fork's Release builds are compiled with `MUX0_UPDATES_DISABLED`:
     /// the upstream appcast belongs to the original author's repo, and a new
     /// upstream release would silently replace the fork on the user's machine.
-    /// Sparkle is compiled out (see SparkleBridge), so explain it instead of
+    /// No Sparkle call site is compiled in (see SparkleBridge — the framework is
+    /// still linked and embedded, just never used), so explain it instead of
     /// leaving a "Check for Updates" button that can only fail.
     private var isUpdatesDisabledAtBuild: Bool {
         SparkleBridge.updatesDisabledAtBuildTime

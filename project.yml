@@ -40,9 +40,13 @@ targets:
         # repo — leaving it live would let an upstream release silently replace
         # this fork on the user's machine. Automatic checks are off AND the feed
         # is empty, and Release is additionally compiled with
-        # MUX0_UPDATES_DISABLED so Sparkle is compiled out entirely (see
-        # mux0/Update/SparkleBridge.swift). SUPublicEDKey stays for a future
-        # fork-owned feed; nothing reads it while the bridge is a stub.
+        # MUX0_UPDATES_DISABLED, which removes every Sparkle *call site* (no file
+        # imports it, so the binary keeps zero undefined Sparkle symbols — see
+        # mux0/Update/SparkleBridge.swift). The framework is still linked and
+        # embedded, because a package product cannot be attached to a single
+        # configuration; these two plist keys are the runtime backstop for that.
+        # SUPublicEDKey stays for a future fork-owned feed; nothing reads it while
+        # the bridge is a stub.
         SUFeedURL: ""
         SUPublicEDKey: +u/yKnlOyk6VnbdXzn5dVaHMoCzambPTRX0dQNe6PRU=
         SUEnableAutomaticChecks: NO
@@ -148,8 +152,9 @@ targets:
         Release:
           PRODUCT_BUNDLE_IDENTIFIER: com.mux0.app
           MUX0_DISPLAY_NAME: Mux0
-          # Fork release: compile Sparkle out so the app can never reach the
-          # upstream appcast (see the Info.plist note above).
+          # Fork release: compiles out every Sparkle call site so the app can
+          # never reach the upstream appcast (the framework itself stays linked;
+          # see the Info.plist note above and mux0/Update/SparkleBridge.swift).
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) MUX0_UPDATES_DISABLED
     dependencies:
       - sdk: Metal.framework

@@ -154,8 +154,14 @@ SKIP_BUILD=1 ./scripts/package-release.sh   # 只重新打包上一次构建
   所以首次运行 Gatekeeper 会拦：`install.sh` 通过 `xattr -dr com.apple.quarantine`
   绕过；手工解压的用户需要右键 → 打开一次。
 - **没有 appcast**。`project.yml` 里 `SUEnableAutomaticChecks = NO` + `SUFeedURL=""`，
-  Release 还带 `MUX0_UPDATES_DISABLED` 编译条件把 Sparkle 整个编译掉（见
-  `mux0/Update/SparkleBridge.swift`）。原因：Info.plist 里的 appcast 指向**上游**仓库，
+  Release 还带 `MUX0_UPDATES_DISABLED` 编译条件（见 `mux0/Update/SparkleBridge.swift`）。
+  说准确点：这个条件把 **每一个 Sparkle 调用点**编掉了 —— 没有任何文件 `import Sparkle`，
+  产物里 undefined 的 Sparkle 符号数为 0（`nm -u mux0.app/Contents/MacOS/mux0 | grep -ci Sparkle`）。
+  但 **framework 仍然被链接与嵌入**（`otool -L` 仍有 `@rpath/Sparkle.framework`，
+  `Contents/Frameworks/Sparkle.framework` 仍在包里，dyld 启动时会映射）—— xcodegen
+  无法把 package product 只绑到某一个 configuration。所以上面那两把 plist 开关是
+  运行时的兼底；“不会去检查”靠的是没人构造 `SPUUpdater`（实测 `lsof -p <pid> -i` 全程为空）。
+  原因：Info.plist 里的 appcast 指向**上游**仓库，
   fork 若继续检查更新，下一个上游版本会静默覆盖 fork 的安装。
   因此 `CURRENT_PROJECT_VERSION` 在这条链路上**手动 +1**（CI 的 auto-tag 不参与）。
 

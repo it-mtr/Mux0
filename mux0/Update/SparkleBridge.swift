@@ -24,9 +24,19 @@ final class SparkleBridge {
 
     /// True when the *build* forbids contacting the appcast, independent of
     /// configuration. Info.plist also ships `SUEnableAutomaticChecks = NO` with
-    /// an empty `SUFeedURL`; this flag makes it structural — the Sparkle symbols
-    /// are not even linked in, so no code path can issue a request, and the
-    /// Update section can state the reason instead of showing a dead button.
+    /// an empty `SUFeedURL`; this flag makes it structural — with the flag on,
+    /// no file here imports Sparkle, so the binary has **zero undefined Sparkle
+    /// symbols** (`nm -u mux0 | grep -ci Sparkle` → 0): there is no call site
+    /// left that could issue a request, and the Update section can state the
+    /// reason instead of showing a dead button.
+    ///
+    /// Linking is a separate matter from calling: the target still declares the
+    /// Sparkle package dependency (xcodegen cannot attach a package product to
+    /// one configuration only), so the Release binary keeps an
+    /// `@rpath/Sparkle.framework` load command and the bundle still embeds the
+    /// framework, which dyld maps at launch. Loading is not contacting: nothing
+    /// instantiates `SPUUpdater`, starts its timer, or opens a socket — verified
+    /// on the shipped build with `lsof -p <pid> -i` staying empty.
     static let updatesDisabledAtBuildTime: Bool = {
         #if MUX0_UPDATES_DISABLED
         return true
