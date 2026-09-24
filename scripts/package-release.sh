@@ -85,7 +85,25 @@ say "product: $APP (v$VERSION build $BUILD_NO)"
 PLIST="$APP/Contents/Info.plist"
 got() { /usr/libexec/PlistBuddy -c "Print :$1" "$PLIST" 2>/dev/null || echo ""; }
 [ "$(got CFBundleShortVersionString)" = "$VERSION" ] || die "version mismatch in Info.plist"
-codesign --verify --deep --strict --verbose=1 "$APP" || die "signature does not verify"
+
+# An incremental build can re-run the resource copy phase without re-signing
+# (Xcode considers the bundle's code signature up to date), which leaves the
+# seal broken because agent-hooks/ changed underneath it. Re-sign with the very
+# entitlements the project asked for — extracted from the existing signature so
+# this never silently changes what the app is allowed to do.
+if ! codesign --verify --deep --strict --verbose=1 "$APP" 2>/dev/null; then
+    say "signature stale after resource copy, re-signing ad-hoc…"
+    ENT=$(mktemp "${TMPDIR:-/tmp}/mux0-ent.XXXXXX.plist")
+    codesign -d --entitlements :- "$APP" > "$ENT" 2>/dev/null || true
+    if ! plutil -lint "$ENT" >/dev/null 2>&1; then
+        # ad-hoc builds without entitlements produce an empty/absent dump
+        printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict/></plist>\n' > "$ENT"
+    fi
+    codesign --force --options runtime --timestamp=none \
+        --sign "$CODE_SIGN_IDENTITY" --entitlements "$ENT" "$APP" || { rm -f "$ENT"; die "re-sign failed"; }
+    rm -f "$ENT"
+    codesign --verify --deep --strict --verbose=1 "$APP" || die "signature still does not verify after re-sign"
+fi
 
 # The agent hook layer ships as a bundle resource; a missing file here means
 # every agent icon silently stays grey in the field.
