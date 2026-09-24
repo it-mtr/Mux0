@@ -18,15 +18,42 @@ xcodebuild test -project mux0.xcodeproj -scheme mux0Tests
 # 单个测试文件
 xcodebuild test -project mux0.xcodeproj -scheme mux0Tests \
   -only-testing:mux0Tests/WorkspaceStoreTests
+
+# 没有 GUI 的机器（CI / 无人值守 Mac）必须指定 destination
+xcodebuild test -project mux0.xcodeproj -scheme mux0Tests -destination 'platform=macOS'
+
+# agent-hooks 的 Python / bash / node 测试（不需要 Xcode）
+python3 -m pytest Resources/agent-hooks/tests/ -q     # agent-hook.py + pi 扩展（node）
+bash Resources/agent-hooks/tests/smoke.sh             # agent-hook.sh 全链路（真 Unix socket）
+bash Resources/agent-hooks/tests/codex_wrapper_cleanup.sh
+bash Resources/agent-hooks/tests/grok_wrapper_overlay.sh
 ```
 
 ## Test Files
 
 ```
-mux0Tests/
+mux0Tests/                       — 30+ 个 XCTestCase 文件（列全部太长，按名字自解释）
 ├── ThemeManagerTests.swift       — 主题解析、降级逻辑
-├── WorkspaceStoreTests.swift     — CRUD、持久化、selectedId 状态
-└── MetadataRefresherTests.swift  — git/port 解析逻辑
+├── WorkspaceStoreTests.swift     — CRUD、持久化、selectedId 状态、pendingPrefills
+├── MetadataRefresherTests.swift  — git/port 解析逻辑
+├── HookMessageTests.swift        — socket JSON 解码、agent 枚举、fromResumeCommand 前缀
+├── HookDispatcherTests.swift     — per-agent 门控、needsInput 门控、resume 双门控
+├── AgentPreferencesTests.swift   — 新增 agent（pi / grok）的通知开关迁移
+├── QuickActionTests.swift        — 内置 action 定义、图标 asset 是否真的存在
+├── QuickActionsStoreTests.swift  — 排序 / 启用集合 / 新 builtin 自动启用迁移
+├── StartupCommandResolverTests.swift — 启动命令优先级（quick action / resume / default）
+└── StatusIndicatorGateTests.swift — 状态图标列是否出现的总开关
+
+Resources/agent-hooks/tests/
+├── test_agent_hook.py         — agent-hook.py 单测（pytest；claude/codex/grok envelope、
+│                                resume 命令、错误聚合、标题与 summary 读取）
+├── pi_extension_test.py       — 在 node 里加载 pi-extension/mux0-status.js，用假 pi 对象
+│                                回放真实事件序列，断言 socket 收到的 JSON（无 node 时自动 skip）
+├── smoke.sh                   — agent-hook.sh 端到端：起 Unix socket，跑 claude 与 grok 的
+│                                完整事件序列（含 grok 的 idle_prompt 兜底去重），再跑 pi wrapper
+├── codex_wrapper_cleanup.sh   — codex wrapper 的 overlay 回写（exec 吃掉 EXIT trap 的回归）
+└── grok_wrapper_overlay.sh    — grok wrapper 的 GROK_HOME overlay：注入点、用户 hooks 保留、
+                                 rename 后的文件回写、sessions 仍指回真实目录、子命令 passthrough
 ```
 
 ## WorkspaceStore 隔离
