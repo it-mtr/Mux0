@@ -269,6 +269,30 @@ mux0 里开的会话**，`agent-hook.py` 也能读到标题。反过来说，如
 - 事件里的 `subagentType`（子 agent 内触发）目前不做区分：子 agent 的 tool 事件同样带
   `session_id`，会并入同一 terminal 的 turn 状态，与 Claude 的子 agent 行为一致。
 
+### 卸载 / 还原：`grok-restore.sh`
+
+A 方案（现行）不写 `~/.grok`：**唯一的痕迹是 overlay 目录**，
+`Resources/agent-hooks/grok-restore.sh` 就是删它（先删符号链接再删目录，绝不跟着符号链接删用户数据），
+并检查 `~/.grok` 里是否残留 `hooks/mux0.json`。
+
+若将来 grok 取消 `GROK_HOME`（或 sandbox 模式下必须回退）而走 B 方案——直接写用户的
+`~/.grok`——B 的写入方**必须**同时留下：
+
+| 位置 | 内容 |
+|---|---|
+| `~/.grok/.mux0-backup/<UTC 时间戳>/<相对路径>` | 改动前的原文件内容；原本不存在的文件记为 `<相对路径>.NEW` |
+| `~/.grok/.mux0-backup/CHANGES.log` | 每个改动一行 TAB 分隔：`<时间>\t<new\|modify\|delete>\t<相对路径>\t<原因>` |
+
+`grok-restore.sh` 按 CHANGES.log **倒序**回放（同一路径只看最新一条决定动作，原始内容取**最早**
+那份还存在的快照），`new` → 删除、`modify`/`delete` → 从快照写回，然后追加一行 `restore`。
+支持 `--dry-run` / `--home DIR` / `--keep-overlay`，并且拒绝把 `--home` 指向 overlay 本身。
+测试见 `tests/grok_restore.sh`（含「两次快照时最早那份胜出」「用户的 `hooks/user.json` 不许动」
+「sessions/ 不许动」等断言）。
+
+`~/.grok/sessions/`、`~/.grok/logs/`、`active_sessions.json` 是 **grok 自己的运行数据**，
+还原时故意不动：它们本来就是符号链接指回真实目录（见上面 sessions 契约），
+用户在 mux0 外面 `grok --resume` 要能看到 mux0 里跑的会话。
+
 ### 调试入口（pi / grok）
 
 1. `grep -E 'agent=(pi|grok)' ~/Library/Caches/mux0/hook-emit.log | awk '{print $2}' | sort | uniq -c`

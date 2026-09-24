@@ -52,8 +52,11 @@ Resources/agent-hooks/tests/
 ├── smoke.sh                   — agent-hook.sh 端到端：起 Unix socket，跑 claude 与 grok 的
 │                                完整事件序列（含 grok 的 idle_prompt 兜底去重），再跑 pi wrapper
 ├── codex_wrapper_cleanup.sh   — codex wrapper 的 overlay 回写（exec 吃掉 EXIT trap 的回归）
-└── grok_wrapper_overlay.sh    — grok wrapper 的 GROK_HOME overlay：注入点、用户 hooks 保留、
+├── grok_wrapper_overlay.sh    — grok wrapper 的 GROK_HOME overlay：注入点、用户 hooks 保留、
                                  rename 后的文件回写、sessions 仍指回真实目录、子命令 passthrough
+└── grok_restore.sh            — grok-restore.sh：A 方案只删 overlay；B 方案按
+                                 .mux0-backup/CHANGES.log 倒序回放（同一路径取最早那份快照），
+                                 用户的 hooks 与 sessions 断言不许动
 ```
 
 ## WorkspaceStore 隔离
