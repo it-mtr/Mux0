@@ -303,6 +303,14 @@ A 方案（现行）不写 `~/.grok`：**唯一的痕迹是 overlay 目录**，
 3. 手动验半条链路：`MUX0_HOOK_SOCK=... MUX0_TERMINAL_ID=... GROK_HOME=~/Library/Caches/mux0/grok-overlay
    grok -p "list files"`，然后看 socket 收到的 JSON 行。
 4. pi 侧可以直接跑单测（不需要模型）：`python3 -m pytest Resources/agent-hooks/tests/pi_extension_test.py -v`。
+5. 真跑一次、拿到事件原文：`…/mux0.app/Contents/Resources/agent-hooks/e2e-live.sh pi|grok|both [--fail]`。
+   它用**当前 bundle 里的 wrapper** 跑一个强制调工具的提示词，自己起一个独立进程监听临时
+   socket，然后断言「带 resumeCommand 的 running」/「带 toolDetail 的 running」/「带 exitCode +
+   summary 的 finished」（`--fail` 要求 exitCode 非 0）并打印全部事件。这是唯一花模型额度（要
+   登录、要网络）的验收脚本，所以放在 `agent-hooks/` 而不是 `tests/`，`run-all.sh` 不会跑它。
+
+> 跑 `tests/` 下的 shell 测试得用 **bash**（它们会在被 zsh 直接启动时 `exec bash` 拉起自己）；
+> 一次性跑全部并 bash + zsh 双跑：`bash Resources/agent-hooks/tests/run-all.sh`，见 `docs/testing.md`。
 
 ## Historical: shell 状态来源
 

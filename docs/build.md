@@ -166,12 +166,15 @@ SKIP_BUILD=1 ./scripts/package-release.sh   # 只重新打包上一次构建
 
 ```bash
 # 一次性：bare mirror（含 tag 2.9.1）+ 二进制 zip 放到 checksum 命名的位置
-cp ~/cache/spm/Sparkle-for-Swift-Package-Manager.zip \
+# （镜像路径以本仓库构建机为准：$HOME/worker/cache/spm/Sparkle.git，
+#   与 scripts/package-release.sh 里 GIT_CONFIG_KEY_0 的默认值一致）
+SPM_MIRROR="$HOME/worker/cache/spm/Sparkle.git"
+cp "$HOME/worker/cache/spm/Sparkle-for-Swift-Package-Manager.zip" \
    /tmp/mux0-spm/artifacts/downloads/<Package.swift 里的 checksum>.zip
 
 # 每次构建
 export GIT_CONFIG_COUNT=1
-export GIT_CONFIG_KEY_0='url.'"$HOME"'/cache/spm/Sparkle.git.insteadOf'
+export GIT_CONFIG_KEY_0="url.$SPM_MIRROR.insteadOf"
 export GIT_CONFIG_VALUE_0='https://github.com/sparkle-project/Sparkle'
 xcodebuild ... -clonedSourcePackagesDirPath /tmp/mux0-spm -scmProvider system -skipPackageUpdates
 ```

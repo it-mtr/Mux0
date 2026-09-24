@@ -39,6 +39,17 @@ bash Resources/agent-hooks/tests/grok_restore.sh
 > 现在脚本开头会在被非 bash 启动时 `exec bash` 重新拉起自己，`run-all.sh` 则强制
 > bash + zsh 两个 shell 都要过，不要只跑一种就宣布通过。
 
+上面全部**不调模型**。要验「接到真 CLI 上还能不能上报」，跑（需要登录、花模型额度，
+所以它不在 `run-all.sh` 里，也不在 `tests/` 目录）：
+
+```bash
+bash Resources/agent-hooks/e2e-live.sh both          # pi + grok 各跑一次真模型
+bash Resources/agent-hooks/e2e-live.sh grok --fail   # 失败路径：exitCode 必须非 0
+```
+
+它断言「带 `resumeCommand` 的 running」/「带 `toolDetail` 的 running」/「带 `exitCode` +
+`summary` 的 finished」，并把 socket 收到的事件原文全部打出来（全过则 `E2E_OK`）。
+
 ## Test Files
 
 ```
