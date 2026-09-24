@@ -31,7 +31,14 @@ bash Resources/agent-hooks/tests/smoke.sh             # agent-hook.sh 全链路�
 bash Resources/agent-hooks/tests/codex_wrapper_cleanup.sh
 bash Resources/agent-hooks/tests/grok_wrapper_overlay.sh
 bash Resources/agent-hooks/tests/grok_restore.sh
+bash Resources/agent-hooks/tests/installer_backup_prune.sh   # scripts/install.sh 的备份/剪枝回归
 ```
+
+> **测试环境里强制 `CLICOLOR_FORCE=1`。** 这一层吃过两次同形态的亏：脚本把 `ls` 的输出
+> 当路径用，而带颜色的 `ls` 会把目录名写成 `\033[34m…`，于是「找快照目录」「剪枝旧备份」
+> 这类逻辑不报错、但什么都不做。审核者的 shell 导出了 `CLICOLOR_FORCE=1`，写报告的这台
+> 没有，于是红的被报成绿的。`run-all.sh` 现在默认打开颜色（`MUX0_NO_COLOR=1` 可关），
+> 具体写法见 `docs/conventions.md#shell-脚本规范`。
 
 > **这些测试得用 bash 跑。** 它们都是 `#!/bin/bash`，但历史上直接用
 > `${BASH_SOURCE[0]}` 定位被测脚本——该变量在 zsh 下是空的，路径会塌到 CWD，
@@ -78,8 +85,11 @@ Resources/agent-hooks/tests/
 ├── grok_wrapper_overlay.sh    — grok wrapper 的 GROK_HOME overlay：注入点、用户 hooks 保留、
                                  rename 后的文件回写、sessions 仍指回真实目录、子命令 passthrough
 ├── grok_restore.sh            — grok-restore.sh：A 方案只删 overlay；B 方案按
-                                 .mux0-backup/CHANGES.log 倒序回放（同一路径取最早那份快照），
-                                 用户的 hooks 与 sessions 断言不许动
+│                                .mux0-backup/CHANGES.log 倒序回放（同一路径取最早那份快照），
+│                                用户的 hooks 与 sessions 断言不许动
+├── installer_backup_prune.sh  — scripts/install.sh（拿临时 --dest 真跑一轮）：优光 Mux0-*.zip、
+│                                旧 app 备份成 mux0-<旧版本>-backup.app、只留 3 份备份且真的删掉
+│                                （颜色开着时 `ls` 会把 .app 目录名写成带 ANSI 的串，rm 会空跑）
 └── run-all.sh                 — 上面全部 + pytest 的一次性入口：每个 shell 测试在 bash 和 zsh 下
                                  各跑一次，必须看到 OK 哨兵（不只看退出码），自带逐项超时
                                  （macOS 没有 `timeout`，看门狗自己长）

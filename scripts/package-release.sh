@@ -187,5 +187,8 @@ release. Settings → Update says so instead of offering a dead button.
 EOF
 
 say "dist/ contents:"
-ls -lh "$DIST" | tail -n +2
+for f in "$DIST"/*; do
+    [ -e "$f" ] || continue
+    say "  $(basename "$f") — $(wc -c < "$f" | tr -d ' ') bytes"
+done
 say "ok"

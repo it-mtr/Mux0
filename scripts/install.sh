@@ -50,6 +50,24 @@ USAGE
 die() { echo "install.sh: $*" >&2; exit 1; }
 note() { echo "install.sh: $*"; }
 
+# Files / directories in $1 matching the glob $2, newest first, one path per line.
+#
+# Deliberately not `ls`: with CLICOLOR_FORCE=1 ls decorates its output with ANSI
+# colours, so `ZIP=$(ls -1t …)` yielded a path that exists nowhere, and the
+# backup-pruning loop handed `rm -rf` a decorated name — old backups simply
+# never went away. find + stat never colourise.
+newest_first() {
+    find "$1" -maxdepth 1 -type f -name "$2" -exec stat -f '%m %N' {} + 2>/dev/null \
+        | sort -nr \
+        | sed 's/^[0-9][0-9]* //'
+}
+
+newest_first_dirs() {
+    find "$1" -maxdepth 1 -type d -name "$2" -exec stat -f '%m %N' {} + 2>/dev/null \
+        | sort -nr \
+        | sed 's/^[0-9][0-9]* //'
+}
+
 while [ $# -gt 0 ]; do
     case "$1" in
         --zip)    ZIP="${2:?--zip needs a path}"; shift 2 ;;
@@ -89,7 +107,7 @@ fi
 # --- locate the zip ---------------------------------------------------------
 if [ -z "$ZIP" ]; then
     for pattern in 'Mux0-*.zip' 'mux0-*.zip' '*.zip'; do
-        ZIP=$(ls -1t "$SCRIPT_DIR"/$pattern 2>/dev/null | grep -v '\.dmg$' | head -1 || true)
+        ZIP=$(newest_first "$SCRIPT_DIR" "$pattern" | head -1)
         [ -n "$ZIP" ] && break
     done
 fi
@@ -153,10 +171,11 @@ if [ -e "$TARGET" ]; then
     note "existing mux0 v$OLD_VERSION (build $OLD_BUILD) → $(basename "$BACKUP")"
     mv "$TARGET" "$BACKUP"
     # Keep at most 3 backups so repeated installs cannot fill the disk.
-    ls -1dt "$DEST"/mux0-*-backup*.app 2>/dev/null | tail -n +4 | while read -r old; do
+    while IFS= read -r old; do
+        [ -n "$old" ] || continue
         note "pruning old backup $(basename "$old")"
         rm -rf "$old"
-    done
+    done < <(newest_first_dirs "$DEST" 'mux0-*-backup*.app' | tail -n +4)
 fi
 
 note "installing to $TARGET"
