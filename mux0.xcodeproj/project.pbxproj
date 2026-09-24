@@ -820,7 +820,7 @@
 				CODE_SIGN_ENTITLEMENTS = mux0/mux0.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				ENABLE_HARDENED_RUNTIME = YES;
 				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/Vendor/ghostty/include";
 				INFOPLIST_FILE = mux0/Info.plist;
@@ -946,7 +946,7 @@
 				CODE_SIGN_ENTITLEMENTS = mux0/mux0.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				ENABLE_HARDENED_RUNTIME = YES;
 				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/Vendor/ghostty/include";
 				INFOPLIST_FILE = mux0/Info.plist;

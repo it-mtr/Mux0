@@ -32,6 +32,7 @@ bash Resources/agent-hooks/tests/codex_wrapper_cleanup.sh
 bash Resources/agent-hooks/tests/grok_wrapper_overlay.sh
 bash Resources/agent-hooks/tests/grok_restore.sh
 bash Resources/agent-hooks/tests/installer_backup_prune.sh   # scripts/install.sh 的备份/剪枝回归
+bash Resources/agent-hooks/tests/installer_running_check.sh  # scripts/install.sh 的「在跑就拒装」回归
 ```
 
 > **测试环境里强制 `CLICOLOR_FORCE=1`。** 这一层吃过两次同形态的亏：脚本把 `ls` 的输出
@@ -90,6 +91,12 @@ Resources/agent-hooks/tests/
 ├── installer_backup_prune.sh  — scripts/install.sh（拿临时 --dest 真跑一轮）：优光 Mux0-*.zip、
 │                                旧 app 备份成 mux0-<旧版本>-backup.app、只留 3 份备份且真的删掉
 │                                （颜色开着时 `ls` 会把 .app 目录名写成带 ANSI 的串，rm 会空跑）
+├── installer_running_check.sh — scripts/install.sh 的「mux0 在跑就拒绝安装」：用假 app 进程
+│                                （`ln -s /bin/sleep` 到 mux0.app/Contents/MacOS/mux0）验它按
+│                                **可执行文件路径**认进程；假进程 argv[0] 被改写成裸 `mux0` 时
+│                                也要认出来（lsof 查映射的镜像）；PATH 上的 `pgrep` 装死（返回空）
+│                                时仍要拒绝，`--force` 仍能装，进程退出后恢复正常
+│                                —— 用户本机就是 pgrep 认不出、脚本照样往下装，见 docs/build.md
 └── run-all.sh                 — 上面全部 + pytest 的一次性入口：每个 shell 测试在 bash 和 zsh 下
                                  各跑一次，必须看到 OK 哨兵（不只看退出码），自带逐项超时
                                  （macOS 没有 `timeout`，看门狗自己长）

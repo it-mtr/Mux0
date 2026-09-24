@@ -141,7 +141,11 @@ targets:
         MARKETING_VERSION: "0.8.5"
         # 0.8.4 shipped build 3. Upstream lets CI bump this; this fork is released
         # locally (no GitHub push), so the build number is bumped by hand.
-        CURRENT_PROJECT_VERSION: "4"
+        # 0.8.5 was first shipped as build 4; build 5 is the same app with the
+        # install.sh that really notices a running mux0 (see docs/build.md), so a
+        # fresh download is tellable apart from the 16:49 package by its SHA256 and
+        # by CFBundleVersion. Marketing version stays 0.8.5.
+        CURRENT_PROJECT_VERSION: "5"
       configs:
         # Debug 构建用独立 bundle id + display name，让 TCC / LaunchServices /
         # UserDefaults / Sparkle 都按 bundle id 分家，开发实例跟 /Applications

@@ -145,7 +145,7 @@ SKIP_BUILD=1 ./scripts/package-release.sh   # 只重新打包上一次构建
 |---|---|
 | `Mux0-<version>.zip` | `ditto -c -k --keepParent`，zip 根只有一个 `mux0.app`。用户解压后 `./install.sh` 即可。 |
 | `Mux0-<version>.dmg` | 与上游 dmg 同结构（app + `/Applications` 软链），用 `hdiutil -format UDZO` 造，不需要 `create-dmg`。名字不带 `-universal`（里面确实是 universal 二进制），fork 的产物不去撞上游资产名。 |
-| `install.sh` | 从 `scripts/install.sh` 复制过来。**先检查 mux0 是否在运行**（在跑就拒绝安装，`--force` 才继续）→ 解压 → 去 quarantine → 备份旧 app（`mux0-<旧版本号>-backup.app`，最多留 3 份）→ `ditto` 安装 → 打印装后的版本号与签名校验 → `open`。`/Applications` 不可写自动退到 `~/Applications`。 |
+| `install.sh` | 从 `scripts/install.sh` 复制过来。**先检查 mux0 是否在运行**（在跑就拒绝安装，`--force` 才继续，判据见下）→ 解压 → 去 quarantine → 备份旧 app（`mux0-<旧版本号>-backup.app`，最多留 3 份）→ `ditto` 安装 → 打印装后的版本号与签名校验 → `open`。`/Applications` 不可写自动退到 `~/Applications`。只看这一条不改动盘：`./install.sh --dry-run`；只问“在不在跑”：`./install.sh --running-check`（在跑打印 pid 退 0，没跑打印 `not-running` 退 10）。 |
 | `SHA256SUMS` / `RELEASE-NOTES-<version>.md` | 校验与说明。 |
 
 与上游产物的差别，只有两处，且都是签名而非格式：
@@ -189,16 +189,41 @@ xcodebuild ... -clonedSourcePackagesDirPath /tmp/mux0-spm -scmProvider system -s
 参数；目录不存在就退回正常联网解析。`-scmProvider system` 是必需的——只有 git 认
 `url.*.insteadOf`，Xcode 内置的 SCM 实现不认。
 
+### “mux0 在跑”到底怎么判的
+
+最早的写法是 `pgrep -x mux0` + 按路径过滤。用户的 MacBook（macOS 26.6）上它**整块失效**：
+app 确定在跑（`ps -o comm= -p <pid>` 给出 `/Applications/mux0.app/Contents/MacOS/mux0`），
+但 `pgrep -x mux0` / `-ix` / `-l` 全部返回空（同一个 `pgrep -x Finder` 正常），
+结果 `install.sh` 不加 `--force` 也照样往下装，把 bundle 从一个活进程底下换掉了。
+
+现在的判据是**可执行文件路径**，主通道不依赖 pgrep：
+
+```bash
+ps -ax -ww -o pid=,comm=      # 取后缀 /mux0.app/Contents/MacOS/mux0 的那几行
+```
+
+- `-ww`：不把行裁到终端宽度，多级安装目录不会把要匹配的后缀裁掉。
+- 按路径后缀而不是按名字：兼容任意安装位置（`/Applications`、`~/Applications`、临时目录），
+  也不误伤另一个也叫 `mux0` 的程序（仓库里的测试二进制）。
+- `ps -o comm=` 其实是 **argv[0]**（不是内核解析后的路径）。万一谁把 argv[0] 改写成裸 `mux0`，
+  还有一条兼底：用 `pgrep -x mux0` 拿到候选 pid，再用 `lsof -p <pid> -a -d txt` 问内核
+  到底映射了哪个镜像。它只是**额外一路**，验不过路径就不计 —— 宁可不拦，不可误拦。
+  注意 `ps -ax -o comm= -p <pid>` 是陷阱：带上 `-ax` 后 BSD ps 会忽略 `-p` 把所有进程都列出来。
+- 回归测试：`Resources/agent-hooks/tests/installer_running_check.sh`（含一个“PATH 上
+  的 `pgrep` 返回空”的代用环境，就是用户本机那个现场）。
+
 ### 装机冒烟
 
 打完整跑一遍（构建机无 GUI 会话时，`open` 会把 app 起在当前用户的 Aqua 会话里）：
 
 ```bash
 ./dist/install.sh --dry-run && ./dist/install.sh --no-open
-open -n /Applications/mux0.app && sleep 15 && pgrep -lx mux0    # 还活着才算过
-ls -l ~/Library/Caches/mux0/hooks-*.sock                         # hook socket 已建立
-pkill -x mux0
-```
+# 看活着的进程一律用路径，不用 pgrep/pkill 的名字匹配（上面说过它在某些机器上会漏）
+MUX0_EXE='/mux0.app/Contents/MacOS/mux0'
+open -n /Applications/mux0.app && sleep 15
+ps -ax -o pid=,comm= | grep -F "$MUX0_EXE"                     # 还活着才算过
+ls -l ~/Library/Caches/mux0/hooks-*.sock                        # hook socket 已建立
+pkill -f "$MUX0_EXE"
 ```
 
 ### Appcast 格式
