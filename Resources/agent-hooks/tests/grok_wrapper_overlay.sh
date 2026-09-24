@@ -19,9 +19,24 @@
 # A fake grok replaces the real binary (found through PATH, exactly like the
 # shell-function injection would) and records what it saw.
 
+# This test needs bash (see shebang). Under zsh `${BASH_SOURCE[0]}` is empty, so
+# `zsh grok_wrapper_overlay.sh` used to resolve grok-wrapper.sh relative to the
+# CWD and die with "no such file or directory". Re-exec under bash when another
+# shell started us. The eval'd `${(%):-%x}` covers `zsh -c 'source …'`, where $0
+# is the shell rather than the script (eval keeps that zsh-only expansion out of
+# bash's parser).
+if [ -z "${BASH_VERSION:-}" ]; then
+    _mux0_self="$0"
+    if [ -n "${ZSH_VERSION:-}" ]; then
+        eval '_mux0_zself="${(%):-%x}"' 2>/dev/null || _mux0_zself=""
+        if [ -f "$_mux0_zself" ]; then _mux0_self="$_mux0_zself"; fi
+    fi
+    exec bash "$_mux0_self" "$@"
+fi
+
 set -e
 
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 SCRIPT_DIR="$HERE/.."
 WRAPPER="$SCRIPT_DIR/grok-wrapper.sh"
 

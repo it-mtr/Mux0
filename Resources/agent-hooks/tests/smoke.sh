@@ -4,9 +4,24 @@
 # handcrafted JSON payloads, asserts socket received the right messages
 # and session file is in the expected state.
 
+# This test needs bash (see shebang). Under zsh `${BASH_SOURCE[0]}` is empty, so
+# `zsh smoke.sh` used to resolve the scripts under test relative to the CWD and
+# die with a confusing "no such file". Re-exec under bash when another shell
+# started us. The eval'd `${(%):-%x}` covers `zsh -c 'source smoke.sh'`, where
+# $0 is the shell rather than the script (eval keeps that zsh-only expansion out
+# of bash's parser).
+if [ -z "${BASH_VERSION:-}" ]; then
+    _mux0_self="$0"
+    if [ -n "${ZSH_VERSION:-}" ]; then
+        eval '_mux0_zself="${(%):-%x}"' 2>/dev/null || _mux0_zself=""
+        if [ -f "$_mux0_zself" ]; then _mux0_self="$_mux0_zself"; fi
+    fi
+    exec bash "$_mux0_self" "$@"
+fi
+
 set -e
 
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 SCRIPT_DIR="$HERE/.."
 AGENT_HOOK="$SCRIPT_DIR/agent-hook.sh"
 
@@ -16,9 +31,17 @@ SESSION_FILE_OVERRIDE="$TMPDIR_LOCAL/sessions.json"
 TRANSCRIPT="$TMPDIR_LOCAL/transcript.jsonl"
 RECEIVED="$TMPDIR_LOCAL/received.log"
 
+SERVER_PID=""
 cleanup() {
     if [ -n "$SERVER_PID" ] && kill -0 "$SERVER_PID" 2>/dev/null; then
-        kill "$SERVER_PID"
+        kill "$SERVER_PID" 2>/dev/null || true
+    fi
+    # Belt and braces: an aborted run used to leave the server alive (PPID 1),
+    # holding this temp dir and — because it inherits stdout — whatever pipe the
+    # caller had set up. The socket path is unique per run, so it identifies our
+    # own stragglers and nothing else.
+    if [ -n "$SOCK" ]; then
+        pkill -f -- "$SOCK" 2>/dev/null || true
     fi
     rm -rf "$TMPDIR_LOCAL"
 }
@@ -31,17 +54,26 @@ cat > "$TRANSCRIPT" <<'EOF'
 EOF
 
 # Start a Python Unix-socket echo server that appends each line to RECEIVED
-python3 - "$SOCK" "$RECEIVED" <<'PY' &
-import sys, socket, os
+# Output goes to a file, never to our stdout: a backgrounded server must not be
+# able to keep the caller's pipe open.
+# The deadline is the second line of defence against orphans — even if the kill
+# in cleanup() never runs, the server gives up on its own.
+python3 - "$SOCK" "$RECEIVED" <<'PY' > "$TMPDIR_LOCAL/server.log" 2>&1 &
+import sys, socket, os, time
 sock_path, log_path = sys.argv[1], sys.argv[2]
+deadline = time.time() + 180
 try: os.unlink(sock_path)
 except FileNotFoundError: pass
 s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 s.bind(sock_path)
 s.listen(8)
+s.settimeout(5)
 with open(log_path, "w") as log:
-    while True:
-        conn, _ = s.accept()
+    while time.time() < deadline:
+        try:
+            conn, _ = s.accept()
+        except socket.timeout:
+            continue
         data = b""
         while True:
             chunk = conn.recv(4096)
@@ -225,5 +257,63 @@ if ! grep -q '"event":"idle","agent":"pi"\|"event": "idle", "agent": "pi"' "$REC
     fi
 fi
 export PATH="$OLD_PATH"
+
+# ---------------------------------------------------------------------------
+# agent-hook.sh — the entry point the shipped hook configs exec (claude
+# --settings, codex hooks.json, grok hooks/mux0.json). Everything above calls
+# agent-hook.py directly, so nothing covered this file — which is exactly how a
+# `dirname "${BASH_SOURCE[0]}"` bug hid: that variable is empty under zsh, so
+# agent-hook.py was looked for in the CWD and the hook died quietly. Both shells
+# must deliver events over the socket.
+# ---------------------------------------------------------------------------
+HOOK_HOME="$TMPDIR_LOCAL/home"
+mkdir -p "$HOOK_HOME/Library/Caches/mux0"
+# Count *occurrences*, not lines: hook-emit.sh (pi) writes compact JSON without a
+# trailing newline, so events can share a line in the log the server appends.
+count_events()   { grep -oE '"terminalId"' "$1"      | wc -l | tr -d ' '; }
+count_finished() { grep -oE '"event": ?"finished"' "$1" | wc -l | tr -d ' '; }
+ENTRY_SH="bash"
+command -v zsh >/dev/null 2>&1 && ENTRY_SH="bash zsh"
+before_lines=$(count_events "$RECEIVED")
+before_finished=$(count_finished "$RECEIVED")
+ENTRY_TRIED=0
+for sh in $ENTRY_SH; do
+    ENTRY_TRIED=$((ENTRY_TRIED + 1))
+    # HOME points into the temp dir: agent-hook.sh hardcodes the session file to
+    # $HOME/Library/Caches/mux0/, and a test must not touch the real one.
+    if ! printf '%s' "{\"session_id\":\"s-entry\",\"transcript_path\":\"$TRANSCRIPT\"}" \
+            | env HOME="$HOOK_HOME" "$sh" "$AGENT_HOOK" prompt claude \
+            > "$TMPDIR_LOCAL/entrypoint.$sh.log" 2>&1; then
+        echo "FAIL(entrypoint): $sh agent-hook.sh prompt exited non-zero" >&2
+        cat "$TMPDIR_LOCAL/entrypoint.$sh.log" >&2; exit 1
+    fi
+    if ! printf '%s' "{\"session_id\":\"s-entry\"}" \
+            | env HOME="$HOOK_HOME" "$sh" "$AGENT_HOOK" stop claude \
+            >> "$TMPDIR_LOCAL/entrypoint.$sh.log" 2>&1; then
+        echo "FAIL(entrypoint): $sh agent-hook.sh stop exited non-zero" >&2
+        cat "$TMPDIR_LOCAL/entrypoint.$sh.log" >&2; exit 1
+    fi
+    # A wrong script_dir surfaces as a python message, not a bad exit code
+    # (agent-hook.sh ends in `exec python3`).
+    if grep -qi "can't open file\|No such file" "$TMPDIR_LOCAL/entrypoint.$sh.log"; then
+        echo "FAIL(entrypoint): $sh agent-hook.sh did not find agent-hook.py" >&2
+        cat "$TMPDIR_LOCAL/entrypoint.$sh.log" >&2; exit 1
+    fi
+done
+sleep 0.4
+after_lines=$(count_events "$RECEIVED")
+after_finished=$(count_finished "$RECEIVED")
+if [ "$((after_lines - before_lines))" -lt "$((ENTRY_TRIED * 2))" ]; then
+    echo "FAIL(entrypoint): $ENTRY_TRIED agent-hook.sh runs produced $((after_lines - before_lines)) events (want >= $((ENTRY_TRIED * 2)))" >&2
+    tail -5 "$RECEIVED" >&2; exit 1
+fi
+if [ "$((after_finished - before_finished))" -lt "$ENTRY_TRIED" ]; then
+    echo "FAIL(entrypoint): only $((after_finished - before_finished)) finished events for $ENTRY_TRIED shells" >&2; exit 1
+fi
+# The session file has to land under the HOME we exported — proof the shim's own
+# path plumbing (not just agent-hook.py) works.
+if [ ! -f "$HOOK_HOME/Library/Caches/mux0/agent-sessions.json" ]; then
+    echo "FAIL(entrypoint): agent-hook.sh wrote no session file under \$HOME/Library/Caches/mux0" >&2; exit 1
+fi
 
 echo "SMOKE OK"

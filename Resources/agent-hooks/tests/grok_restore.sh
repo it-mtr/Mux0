@@ -8,9 +8,23 @@
 # The test fabricates a B-style mutation by hand (the same layout a B writer
 # produces), runs the restore, and asserts the user's own files are untouched.
 
+# This test needs bash (see shebang). Under zsh `${BASH_SOURCE[0]}` is empty, so
+# `zsh grok_restore.sh` used to look for grok-restore.sh next to the CWD and
+# report RESTORE_FAIL. Re-exec under bash when another shell started us. The
+# eval'd `${(%):-%x}` covers `zsh -c 'source …'`, where $0 is the shell rather
+# than the script (eval keeps that zsh-only expansion out of bash's parser).
+if [ -z "${BASH_VERSION:-}" ]; then
+    _mux0_self="$0"
+    if [ -n "${ZSH_VERSION:-}" ]; then
+        eval '_mux0_zself="${(%):-%x}"' 2>/dev/null || _mux0_zself=""
+        if [ -f "$_mux0_zself" ]; then _mux0_self="$_mux0_zself"; fi
+    fi
+    exec bash "$_mux0_self" "$@"
+fi
+
 set -e
 
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 SCRIPT_DIR="$HERE/.."
 RESTORE="$SCRIPT_DIR/grok-restore.sh"
 
