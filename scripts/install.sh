@@ -170,9 +170,19 @@ if [ -e "$TARGET" ]; then
     fi
     note "existing mux0 v$OLD_VERSION (build $OLD_BUILD) → $(basename "$BACKUP")"
     mv "$TARGET" "$BACKUP"
+    # Pin the fresh copy to *now*. `ditto` preserves the bundle's mtime, so a
+    # backup carries the timestamp of whichever build produced it — and several
+    # backups made from the same build all tie. Ties fall back to path order, so
+    # the rollback copy you just made could rank last and get pruned by the very
+    # install that created it. Pruning means "keep the three newest installs",
+    # so the ordering key has to be when it was installed.
+    touch "$BACKUP"
     # Keep at most 3 backups so repeated installs cannot fill the disk.
     while IFS= read -r old; do
         [ -n "$old" ] || continue
+        # Belt and braces: never prune the copy this run just made, whatever the
+        # filesystem says about its mtime.
+        if [ "$old" = "$BACKUP" ]; then continue; fi
         note "pruning old backup $(basename "$old")"
         rm -rf "$old"
     done < <(newest_first_dirs "$DEST" 'mux0-*-backup*.app' | tail -n +4)

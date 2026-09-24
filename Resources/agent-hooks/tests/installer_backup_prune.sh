@@ -111,4 +111,40 @@ done
 # The run must actually have been under colours, or it proves nothing.
 [ "${CLICOLOR_FORCE:-}" = "1" ] || fail "CLICOLOR_FORCE was not set — this test would pass trivially"
 
+# --- round 3: the rollback copy must survive its own install ------------------
+# `ditto` preserves the bundle's mtime, so a backup carries the *build* time, not
+# the time it was made. Ordering backups "newest first" by that mtime can rank
+# the copy you just created last, and `tail -n +4` then deletes the one file the
+# user needs to roll back with.
+rollback_survives() { # <label> <seed-app-mtime> <backup-mtime>…
+    local label="$1" seed_mtime="$2"; shift 2
+    local d="$ROOT/$label" v
+    mkdir -p "$d"
+    make_app "$d/mux0.app" 0.8.4 3
+    touch -t "$seed_mtime" "$d/mux0.app"
+    for v in 0.8.1 0.8.2 0.8.3; do
+        make_app "$d/mux0-$v-backup.app" "$v" 1
+        touch -t "$1" "$d/mux0-$v-backup.app"
+    done
+
+    "$ROOT/pkg/install.sh" --dest "$d" --no-open --zip "$ROOT/pkg/Mux0-9.9.9.zip" \
+            > "$ROOT/$label.log" 2>&1 \
+        || { cat "$ROOT/$label.log" >&2; fail "$label: install.sh exited non-zero"; }
+
+    [ -d "$d/mux0-0.8.4-backup.app" ] \
+        || fail "$label: the rollback copy mux0-0.8.4-backup.app was deleted by its own install"
+    local n
+    n=$(find "$d" -maxdepth 1 -type d -name 'mux0-*-backup*.app' | wc -l | tr -d ' ')
+    [ "$n" = "3" ] || fail "$label: expected 3 backups, found $n"
+    [ ! -e "$d/mux0-0.8.1-backup.app" ] \
+        || fail "$label: the oldest backup should have been pruned instead of the new one"
+}
+
+# 3a. the seed app is older than every existing backup: deterministic pre-fix
+# failure, the fresh copy sorts last and gets pruned.
+rollback_survives round3a 202401010000 202501010000
+# 3b. the ditto case: everything carries the same build mtime, so ordering is a
+# four-way tie and only the explicit "never prune what we just made" rule saves it.
+rollback_survives round3b 202501010000 202501010000
+
 echo "INSTALLER_OK"
