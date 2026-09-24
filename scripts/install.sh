@@ -25,6 +25,7 @@ DEST=""
 OPEN_APP=1
 DRY_RUN=0
 FORCE=0
+RUNNING_CHECK=0
 
 usage() {
     cat <<'USAGE'
@@ -39,7 +40,14 @@ Usage: ./install.sh [options]
                  running process keeps the old bundle open, and its window
                  state can be rewritten over the new install)
   --dry-run      print what would happen, change nothing
+  --running-check
+                 only report whether mux0 looks like it is running: print the
+                 matching pids and exit 0, or print "not-running" and exit 10.
+                 Used by tests/installer_running_check.sh; changes nothing.
   -h, --help     this text
+
+Environment: MUX0_INSTALL_EXE_SUFFIX overrides the executable path suffix that
+counts as "mux0 is running" (tests point it at a throwaway bundle).
 
 What it does: refuses to touch a running mux0, moves the previous app aside
 as mux0-<old version>-backup.app, unpacks the zip with ditto, strips the
@@ -75,6 +83,7 @@ while [ $# -gt 0 ]; do
         --no-open) OPEN_APP=0; shift ;;
         --force)  FORCE=1; shift ;;
         --dry-run) DRY_RUN=1; shift ;;
+        --running-check) RUNNING_CHECK=1; shift ;;
         -h|--help) usage; exit 0 ;;
         *) die "unknown argument: $1 (try --help)" ;;
     esac
@@ -84,24 +93,79 @@ done
 # Replacing the bundle under a live process is how you get a window that looks
 # like the old build and a settings file written by two versions at once, so
 # the safe default is to stop and tell the user to quit mux0 first.
-if [ "$FORCE" != "1" ]; then
-    RUNNING=$(pgrep -x mux0 2>/dev/null || true)
-    if [ -n "$RUNNING" ]; then
-        # Only count processes that really are this app, not any binary named
-        # mux0 (a checkout's test helper, for instance).
-        LIVES=""
-        for pid in $RUNNING; do
-            path=$(ps -o comm= -p "$pid" 2>/dev/null | sed 's/^[[:space:]]*//')
-            case "$path" in
-                */mux0.app/Contents/MacOS/mux0) LIVES="$LIVES $pid" ;;
-            esac
+#
+# What counts as "this app": the executable path of a bundle's main binary is
+# always <somewhere>/mux0.app/Contents/MacOS/mux0, so the *path* is the
+# identifier — it works for any install location (/Applications, ~/Applications,
+# a staging dir) and does not match an unrelated program that happens to be
+# called mux0 (a checkout's test helper, say).
+#
+# Matching on the process *name* alone is not enough. On at least one user's
+# MacBook the app was demonstrably running — `ps -o comm=` reported
+# /Applications/mux0.app/Contents/MacOS/mux0 — while `pgrep -x mux0`,
+# `pgrep -ix mux0` and `pgrep -l mux0` all came back empty (`pgrep -x Finder`
+# worked). The guard then never fired and the install swapped the bundle under a
+# live process. So `ps -ax -o pid=,comm=` is the primary source; pgrep stays
+# only as an extra hint for processes whose reported name carries no path, and
+# those are verified by path before being counted.
+MUX0_EXE_SUFFIX="${MUX0_INSTALL_EXE_SUFFIX:-/mux0.app/Contents/MacOS/mux0}"
+
+path_is_mux0() { # <executable path or argv[0]>
+    case "$1" in
+        *"$MUX0_EXE_SUFFIX") return 0 ;;
+    esac
+    return 1
+}
+
+# pids of running mux0.app processes, one per line.
+#
+# `ps -o comm=` prints argv[0], not a kernel-resolved path, so the two sources
+# below cover each other's blind spot: one reads the reported path, the other
+# asks which image is mapped. Either alone can miss a live app.
+mux0_running_pids() {
+    local pid path
+    {
+        # -ww: never truncate the line to the terminal width — a deep install
+        # path must not lose the suffix being matched.
+        while read -r pid path; do
+            [ -n "${pid:-}" ] || continue
+            if path_is_mux0 "$path"; then echo "$pid"; fi
+        done < <(ps -ax -ww -o pid=,comm= 2>/dev/null)
+
+        # Second source, never the only one: a process whose reported name is a
+        # bare `mux0`, i.e. argv[0] carries no directory part (`ps -o comm=`
+        # prints argv[0], which a launcher or the app itself can rewrite). Ask
+        # which image is actually mapped before trusting it — that also keeps an
+        # unrelated `mux0` binary out of the list. NB: no -ax with -p, BSD ps
+        # would then ignore -p and list every process.
+        for pid in $(pgrep -x mux0 2>/dev/null || true); do
+            path=$(ps -ww -o comm= -p "$pid" 2>/dev/null | head -1)
+            case "$path" in */*) continue ;; esac       # the scan above saw it
+            command -v lsof >/dev/null 2>&1 || continue
+            path=$(lsof -p "$pid" -a -d txt -Fn 2>/dev/null | sed -n 's/^n//p' | head -1)
+            if path_is_mux0 "$path"; then echo "$pid"; fi
         done
-        if [ -n "$LIVES" ]; then
-            note "mux0 is running (pid$LIVES) — quit it with Cmd-Q first,"
-            note "or re-run with --force to install anyway."
-            exit 1
-        fi
+    } | sort -n -u
+}
+
+RUNNING_PIDS=""
+if [ "$FORCE" != "1" ] || [ "$RUNNING_CHECK" = "1" ]; then
+    RUNNING_PIDS=$(mux0_running_pids | tr '\n' ' ' | sed 's/[[:space:]]*$//') || true
+fi
+
+if [ "$RUNNING_CHECK" = "1" ]; then
+    if [ -n "$RUNNING_PIDS" ]; then
+        echo "running: $RUNNING_PIDS"
+        exit 0
     fi
+    echo "not-running"
+    exit 10
+fi
+
+if [ -n "$RUNNING_PIDS" ]; then
+    note "mux0 is running (pid $RUNNING_PIDS) — quit it with Cmd-Q first,"
+    note "or re-run with --force to install anyway."
+    exit 1
 fi
 
 # --- locate the zip ---------------------------------------------------------

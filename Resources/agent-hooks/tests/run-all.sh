@@ -139,6 +139,7 @@ for script in "$HERE"/*.sh; do
             grok_wrapper_overlay.sh)     marker="GROK_WRAPPER_OK" ;;
             grok_restore.sh)             marker="GROK_RESTORE_OK" ;;
             installer_backup_prune.sh)   marker="INSTALLER_OK" ;;
+            installer_running_check.sh)  marker="INSTALLER_RUNNING_OK" ;;
         esac
         run_case "$sh tests/$name" "$marker" "$sh" "$script"
     done

@@ -17,6 +17,11 @@
 # forced on below instead of inherited, so a clean environment cannot hide it.
 #
 # Nothing here touches /Applications or launches anything.
+#
+# Every round passes --force: these rounds are about what lands on disk, and the
+# "quit mux0 first" guard is global, so without it a developer who happens to be
+# running mux0 while running the tests would see all four rounds refuse. The
+# guard itself is covered by installer_running_check.sh.
 
 if [ -z "${BASH_VERSION:-}" ]; then
     _mux0_self="$0"
@@ -72,7 +77,7 @@ chmod +x "$ROOT/pkg/install.sh"
 
 # --- round 1: discovery ------------------------------------------------------
 D1="$ROOT/apps1"; mkdir -p "$D1"
-"$ROOT/pkg/install.sh" --dest "$D1" --no-open > "$ROOT/out1.log" 2>&1 \
+"$ROOT/pkg/install.sh" --dest "$D1" --no-open --force > "$ROOT/out1.log" 2>&1 \
     || { cat "$ROOT/out1.log" >&2; fail "round 1: install.sh exited non-zero"; }
 grep -q 'package: .*Mux0-9\.9\.9\.zip' "$ROOT/out1.log" \
     || { cat "$ROOT/out1.log" >&2; fail "round 1: did not prefer Mux0-*.zip over a newer mux0-*.zip"; }
@@ -90,7 +95,7 @@ touch -t 202501010000 "$D2/mux0-0.8.1-backup.app"
 touch -t 202501020000 "$D2/mux0-0.8.2-backup.app"
 touch -t 202501030000 "$D2/mux0-0.8.3-backup.app"
 
-"$ROOT/pkg/install.sh" --dest "$D2" --no-open --zip "$ROOT/pkg/Mux0-9.9.9.zip" \
+"$ROOT/pkg/install.sh" --dest "$D2" --no-open --force --zip "$ROOT/pkg/Mux0-9.9.9.zip" \
         > "$ROOT/out2.log" 2>&1 \
     || { cat "$ROOT/out2.log" >&2; fail "round 2: install.sh exited non-zero"; }
 
@@ -127,7 +132,7 @@ rollback_survives() { # <label> <seed-app-mtime> <backup-mtime>…
         touch -t "$1" "$d/mux0-$v-backup.app"
     done
 
-    "$ROOT/pkg/install.sh" --dest "$d" --no-open --zip "$ROOT/pkg/Mux0-9.9.9.zip" \
+    "$ROOT/pkg/install.sh" --dest "$d" --no-open --force --zip "$ROOT/pkg/Mux0-9.9.9.zip" \
             > "$ROOT/$label.log" 2>&1 \
         || { cat "$ROOT/$label.log" >&2; fail "$label: install.sh exited non-zero"; }
 
