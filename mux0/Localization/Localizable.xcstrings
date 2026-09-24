@@ -409,6 +409,40 @@
         }
       }
     },
+    "quickActions.builtin.pi": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "pi"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "pi"
+          }
+        }
+      }
+    },
+    "quickActions.builtin.grok": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grok"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grok"
+          }
+        }
+      }
+    },
     "settings.appearance.backgroundBlur": {
       "extractionState": "manual",
       "localizations": {
@@ -1085,6 +1119,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "OpenCode"
+          }
+        }
+      }
+    },
+    "settings.agents.pi": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "pi"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "pi"
+          }
+        }
+      }
+    },
+    "settings.agents.grok": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grok CLI"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grok CLI"
           }
         }
       }
