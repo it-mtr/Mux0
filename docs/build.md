@@ -126,6 +126,70 @@ git push origin master v0.2.1
 ```
 
 auto-tag.yml 在 master push 时会启动但发现 `MARKETING_VERSION` 相对 `HEAD^` 未变就 exit 0，不会干扰手动 tag。
+
+---
+
+## 本地发版（fork / 无 CI / 无 Developer ID）
+
+上游那条链路依赖 GitHub Runner + Developer ID + notarytool。在拿不到 GitHub、
+也没有开发者证书的机器上（比如内网构建机），用：
+
+```bash
+./scripts/package-release.sh          # 构建 Release + 打包到 dist/
+SKIP_BUILD=1 ./scripts/package-release.sh   # 只重新打包上一次构建
+```
+
+产物（`dist/`，已在 `.gitignore` 里）：
+
+| 文件 | 说明 |
+|---|---|
+| `mux0-<version>-universal.zip` | `ditto -c -k --keepParent`，zip 根只有一个 `mux0.app`。用户解压后 `./install.sh` 即可。 |
+| `mux0-<version>-universal.dmg` | 与上游 CI 的 `mux0-<version>-universal.dmg` 同名同结构（app + `/Applications` 软链），用 `hdiutil -format UDZO` 造，不需要 `create-dmg`。 |
+| `install.sh` | 从 `scripts/install.sh` 复制过来。解压 → 去 quarantine → 备份旧 app（`mux0.app.bak-<时间戳>`，最多留 3 份）→ `ditto` 安装 → `open`。`/Applications` 不可写自动退到 `~/Applications`。 |
+| `SHA256SUMS` / `RELEASE-NOTES-<version>.md` | 校验与说明。 |
+
+与上游产物的差别，只有两处，且都是签名而非格式：
+
+- **ad-hoc 签名**（`CODE_SIGN_IDENTITY="-"`）+ Hardened Runtime，不公证。
+  所以首次运行 Gatekeeper 会拦：`install.sh` 通过 `xattr -dr com.apple.quarantine`
+  绕过；手工解压的用户需要右键 → 打开一次。
+- **没有 appcast**。`project.yml` 里 `SUEnableAutomaticChecks = NO` + `SUFeedURL=""`，
+  Release 还带 `MUX0_UPDATES_DISABLED` 编译条件把 Sparkle 整个编译掉（见
+  `mux0/Update/SparkleBridge.swift`）。原因：Info.plist 里的 appcast 指向**上游**仓库，
+  fork 若继续检查更新，下一个上游版本会静默覆盖 fork 的安装。
+  因此 `CURRENT_PROJECT_VERSION` 在这条链路上**手动 +1**（CI 的 auto-tag 不参与）。
+
+### Sparkle 离线解析
+
+`xcodebuild` 解析 SPM 依赖要访问 GitHub。把 Sparkle 预置成本地镜像 + 二进制产物目录，
+再让 git 把上游 URL 重定向到镜像：
+
+```bash
+# 一次性：bare mirror（含 tag 2.9.1）+ 二进制 zip 放到 checksum 命名的位置
+cp ~/cache/spm/Sparkle-for-Swift-Package-Manager.zip \
+   /tmp/mux0-spm/artifacts/downloads/<Package.swift 里的 checksum>.zip
+
+# 每次构建
+export GIT_CONFIG_COUNT=1
+export GIT_CONFIG_KEY_0='url.'"$HOME"'/cache/spm/Sparkle.git.insteadOf'
+export GIT_CONFIG_VALUE_0='https://github.com/sparkle-project/Sparkle'
+xcodebuild ... -clonedSourcePackagesDirPath /tmp/mux0-spm -scmProvider system -skipPackageUpdates
+```
+
+`scripts/package-release.sh` 在检测到 `MUX0_SPM_DIR`（默认 `/tmp/mux0-spm`）存在时自动加这三个
+参数；目录不存在就退回正常联网解析。`-scmProvider system` 是必需的——只有 git 认
+`url.*.insteadOf`，Xcode 内置的 SCM 实现不认。
+
+### 装机冒烟
+
+打完整跑一遍（构建机无 GUI 会话时，`open` 会把 app 起在当前用户的 Aqua 会话里）：
+
+```bash
+./dist/install.sh --dry-run && ./dist/install.sh --no-open
+open -n /Applications/mux0.app && sleep 15 && pgrep -lx mux0    # 还活着才算过
+ls -l ~/Library/Caches/mux0/hooks-*.sock                         # hook socket 已建立
+pkill -x mux0
+```
 ```
 
 ### Appcast 格式

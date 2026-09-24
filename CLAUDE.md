@@ -139,6 +139,7 @@ mux0/
 | 接入新的 ghostty C API | `Ghostty/GhosttyBridge.swift`，需同步更新 `docs/ghostty-integration.md` |
 | 改自动更新 UI / 行为 | `mux0/Update/UpdateStore.swift`, `mux0/Update/UpdateUserDriver.swift`, `mux0/Settings/Sections/UpdateSectionView.swift`, `mux0/Sidebar/SidebarView.swift`（footer） |
 | 改发布流水线 / appcast 格式 | `.github/workflows/release.yml`, `.github/scripts/render-appcast.sh`, `docs/build.md` |
+| 本地出发布包（无 CI / 无 Developer ID / 无 GitHub） | `./scripts/package-release.sh` → `dist/`（zip + dmg + `install.sh` + SHA256SUMS），`scripts/install.sh`，`docs/build.md#本地发版fork` |
 | 发新版本 | 改 `project.yml` 的 `MARKETING_VERSION` → `./scripts/sync-landing-version.sh` 同步 landing → commit → push 到 master（CI 自动 bump build + 打 tag + 发版，详见 `docs/build.md#release-流程`） |
 | 同步 landing 版本号 | `./scripts/sync-landing-version.sh`（`--check` 为只读校验，CI drift check 会调用） |
 | 新增设置项 | `Settings/Sections/<对应>.swift`, `Settings/SettingsConfigStore.swift`（默认值/校验）, `docs/settings-reference.md` |
