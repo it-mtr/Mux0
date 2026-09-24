@@ -212,6 +212,8 @@ enum L10n {
             static let dismiss             = LocalizedStringResource("settings.update.dismiss")
             static let retry               = LocalizedStringResource("settings.update.retry")
             static let debugDisabled       = LocalizedStringResource("settings.update.debugDisabled")
+            static let updatesRow          = LocalizedStringResource("settings.update.updatesRow")
+            static let updatesDisabledFork = LocalizedStringResource("settings.update.updatesDisabledFork")
 
             /// "Version X.Y.Z" formatted at the call site.
             static func versionNumber(_ version: String) -> LocalizedStringResource {

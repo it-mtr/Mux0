@@ -122,6 +122,8 @@ final class L10nSmokeTests: XCTestCase {
         "settings.update.skipThisVersion",
         "settings.update.status",
         "settings.update.upToDate",
+        "settings.update.updatesDisabledFork",
+        "settings.update.updatesRow",
         "settings.update.version %@",
         // Settings — theme
         "settings.theme.dark",

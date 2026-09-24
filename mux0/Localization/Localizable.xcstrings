@@ -2075,6 +2075,40 @@
         }
       }
     },
+    "settings.update.updatesDisabledFork": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not checked in this build (no upstream update feed)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此构建不检查更新（未配置上游更新源）"
+          }
+        }
+      }
+    },
+    "settings.update.updatesRow": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updates"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新检查"
+          }
+        }
+      }
+    },
     "settings.update.debugBuild": {
       "extractionState": "manual",
       "localizations": {
