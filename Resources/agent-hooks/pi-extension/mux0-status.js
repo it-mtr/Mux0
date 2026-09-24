@@ -270,7 +270,11 @@ export default function (pi) {
   });
 
   pi.on("ui_prompt_end", async () => {
-    if (state.turnOpen) emit("running");
+    // await, like every other emit: one connection per event and no await means
+    // the kernel decides the accept order, so this `running` can land after the
+    // next `finished` and get dropped by the stale guard — leaving the orange
+    // “needs input” dot on until some later event happens to clear it.
+    if (state.turnOpen) await emit("running");
   });
 
   pi.on("agent_end", async (event) => {

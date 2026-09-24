@@ -13,6 +13,7 @@ Skips automatically when Node is not installed.
 import json
 import os
 import pathlib
+import re
 import tempfile
 import shutil
 import socket
@@ -74,7 +75,11 @@ async function main() {
   await handlers["ui_prompt_start"](
     { type: "ui_prompt_start", reason: "ui_prompt", kind: "confirm",
       title: "Allow?" }, ctx);                                     await sleep(40);
-  await handlers["ui_prompt_end"]({ type: "ui_prompt_end" }, ctx);  await sleep(40);
+  await handlers["ui_prompt_end"]({ type: "ui_prompt_end" }, ctx);
+  // The cushion after this handler is deliberately optional. When ui_prompt_end
+  // dropped its emit promise, the write raced agent_end's and a fixed 40ms gap
+  // hid that; MUX0_NO_SLEEP=1 takes the cushion away so the race is observable.
+  if (!process.env.MUX0_NO_SLEEP) await sleep(40);
   await handlers["agent_end"]({
     type: "agent_end",
     messages: [
@@ -227,6 +232,45 @@ def test_pi_extension_needs_input_precedes_resume_of_running(tmp_path):
     assert idx["needsInput"] < msgs.index(next(m for m in msgs if m["event"] == "finished"))
     # ui_prompt_end pushed the terminal back to running before agent_end.
     assert msgs[idx["needsInput"] + 1]["event"] == "running"
+
+
+def test_pi_extension_recovers_needs_input_without_a_time_gap(tmp_path):
+    """Same ordering, but with the 40ms cushion after ui_prompt_end removed.
+
+    One connection per event means the accept order is the kernel's decision, so
+    a `running` whose emit is *not* awaited can reach the socket after the
+    following `finished`; the app's stale guard then drops it and the orange
+    “needs input” dot stays on until some later event clears it. `ui_prompt_end`
+    shipped exactly like that.
+    """
+    msgs = _run_extension(tmp_path, {"MUX0_NO_SLEEP": "1"})
+    events = [m["event"] for m in msgs]
+    assert "needsInput" in events, events
+    after = events[events.index("needsInput") + 1:]
+    assert after and after[0] == "running", events
+    assert "finished" in after, events
+    assert after.index("running") < after.index("finished"), events
+
+
+def test_pi_extension_awaits_every_emit():
+    """Behavioural ordering tests can be lucky; this one cannot.
+
+    Every emit inside a handler must be awaited (or explicitly returned). A
+    dropped promise is a dropped status transition, and the comment block at the
+    top of the extension says why: accept order is not ours to choose.
+    """
+    src = EXTENSION.read_text()
+    offenders = []
+    for lineno, line in enumerate(src.splitlines(), 1):
+        stripped = line.strip()
+        if stripped.startswith("//") or stripped.startswith("*"):
+            continue
+        for m in re.finditer(r"(?<![A-Za-z0-9_$.])emit\(", line):
+            before = line[: m.start()]
+            if re.search(r"\b(await|return|function)\s+$", before):
+                continue
+            offenders.append(f"L{lineno}: {stripped}")
+    assert not offenders, "un-awaited emit(): " + "; ".join(offenders)
 
 
 def test_pi_extension_silent_without_mux0_env(tmp_path):
